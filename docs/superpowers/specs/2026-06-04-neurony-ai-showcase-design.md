@@ -80,7 +80,7 @@ lib/
 
 ### 3.2 Three load-bearing boundaries
 
-1. **`impl/` vs boundaries.** Pure functions in every demo's `impl/` directory — no `Repo`, no HTTP, no IO, no `Date.now`. Boundaries (each demo's `pipeline.ex`) own `Ecto.Multi`, transactions, Oban enqueues, side effects. Enforced by code review, not tooling, but it is the single most load-bearing rule. Tests for `impl/` are unit tests; tests for boundaries are integration tests against `AnthropicClient.Mock`.
+1. **`impl/` vs boundaries.** Pure functions in every demo's `impl/` directory — no `Repo`, no HTTP, no IO, no clock reads (`DateTime.utc_now/0`, `Date.utc_today/0`). Boundaries (each demo's `pipeline.ex`) own `Ecto.Multi`, transactions, Oban enqueues, side effects, and supply the "current time" as an argument when `impl/` needs it. Enforced by code review, not tooling, but it is the single most load-bearing rule. Tests for `impl/` are unit tests; tests for boundaries are integration tests against `AnthropicClient.Mock`.
 2. **`Common` is depended-on, never depends up.** It knows nothing about any specific demo. Demos depend on `Common`. Building the cascade matcher, JSON parser, prompt admin, audit log, and reset machinery *once* is what makes cross-demo consistency real — the `NeedsHumanBadge` looks identical across all four live demos because it lives in `Common`.
 3. **`Dashboard` orchestrates demos but doesn't own their data.** It reads each demo's seeder module to render value-framed tiles and calls each demo's reset function during global reset. Demos do not reach back into `Dashboard`. One-way dependency.
 
@@ -95,13 +95,13 @@ One Postgres instance, one database, one schema. Tables are prefixed per demo:
 - `ia_*` — Invoice Approval (contracts, invoices, delivery_notes, ...)
 - `rc_*` — Restaurant Compliance (placeholder)
 
-Cross-demo joins are forbidden by convention. Each demo's surface area is its own tables + `Common`. Reset is per-demo: `TRUNCATE` matching prefix inside a transaction, then re-seed from the demo's `seed.ex`.
+Cross-demo joins are forbidden by convention. Each demo's surface area is its own tables + `Common`. Reset is per-demo: `TRUNCATE` the tables sharing that prefix (enumerated explicitly per demo, since Postgres `TRUNCATE` does not pattern-match table names) inside a transaction, then re-seed from the demo's `seed.ex`.
 
 The `pg_trgm` extension is enabled at migration time; `CascadeMatcher`'s fuzzy step depends on it.
 
 ### 3.4 Oban
 
-Free version. One queue per demo: `:order_flow`, `:recruit_flow`, `:planogram`, `:invoice_approval`. Per-queue isolation makes pipeline progress visible in the Oban LiveDashboard during demos — a quiet but useful AE talking point.
+Free version. One queue per demo: `:order_flow`, `:recruit_flow`, `:planogram`, `:invoice_approval`. Per-queue isolation makes pipeline progress visible in the Oban dashboard during demos — a quiet but useful AE talking point. (Specific dashboard package — Oban Web vs Phoenix LiveDashboard's Oban integration — chosen at phase 0.)
 
 RecruitFlow's five scheduler ticks (call submission, stuck-call polling, CV inbox polling, follow-ups, stale-rejection close) are Oban cron jobs. They tick on their natural cadences in normal use; the `Tick scheduler` demo button manually inserts one of each.
 
@@ -118,7 +118,7 @@ Ash 3.x. Where the Ash DSL versus Ecto's lower-level API is genuinely ambiguous,
 
 ### 3.6 Anthropic client
 
-Thin wrapper around the official `:anthropic` library:
+Thin wrapper around an Elixir Anthropic SDK (specific library chosen at phase 0 — e.g., `:anthropix` or a hand-rolled `Req`-backed client if no SDK fits):
 
 - Returns `{:ok, %{response, usage, cost_estimate}}` or `{:error, reason}`
 - Surfaces token usage per call — load-bearing for the Planogram cost-transparency UI
@@ -303,7 +303,7 @@ PubSub carries progress; the DB carries truth. The LiveView never trusts in-flig
 
 - **Telemetry** fires on: every AI call (latency, tokens, cost), every cascade step + outcome, every state transition, every reset.
 - **Phoenix LiveDashboard** mounted at `/admin/dashboard` (auth-gated). Useful for AE prep.
-- **Oban LiveDashboard** mounted at `/admin/oban`. Per-queue visibility is intentional — if a job hangs during a live demo, the AE can see it.
+- **Oban dashboard** mounted at `/admin/oban`. Per-queue visibility is intentional — if a job hangs during a live demo, the AE can see it.
 
 No external observability consumer (Honeycomb, Datadog, Sentry) wired up. The Telemetry events emit; nothing forwards them yet. Adding a consumer is a future-phase concern.
 
