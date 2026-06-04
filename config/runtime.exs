@@ -23,6 +23,11 @@ end
 config :showcase, ShowcaseWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Anthropic API key. Empty string when missing so dev/test still boot;
+# real calls then fail with auth errors. The Mock impl bypasses this in tests.
+config :anthropix,
+  api_key: System.get_env("ANTHROPIC_API_KEY") || ""
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
