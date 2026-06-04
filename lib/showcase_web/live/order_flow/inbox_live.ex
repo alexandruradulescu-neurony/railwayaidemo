@@ -6,7 +6,11 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      if Mix.env() != :prod do
+      # Register Mock responses only when the AnthropicClient Mock impl is
+      # active. Runtime-safe: works in releases (unlike `Mix.env/0`) and
+      # silently skips when the Live impl is in use.
+      if Application.get_env(:showcase, :anthropic_client_impl) ==
+           Showcase.Common.AnthropicClient.Mock do
         OrderFlow.register_mock_responses()
       end
     end
