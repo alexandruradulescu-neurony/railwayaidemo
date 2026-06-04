@@ -9,6 +9,14 @@ defmodule Showcase.OrderFlow.SeedTest do
     assert Seed.name() == "OrderFlow"
   end
 
+  test "description/0 returns a one-line value-framing copy" do
+    description = Seed.description()
+    assert is_binary(description)
+    # Sanity: short enough for a tile, contains a meaningful phrase
+    assert String.length(description) > 20
+    assert String.length(description) < 200
+  end
+
   test "tables/0 returns of_* tables in child-before-parent order" do
     tables = Seed.tables()
     assert "of_order_lines" in tables

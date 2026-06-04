@@ -32,11 +32,19 @@ defmodule Showcase.Common.DemoSeeder do
   @callback name() :: String.t()
 
   @doc """
+  Optional. One-line description of the demo for the dashboard tile.
+  Used as the value-framing copy on the launcher.
+
+  If not implemented, the tile falls back to the demo name as its description.
+  """
+  @callback description() :: String.t()
+
+  @doc """
   Optional. The Oban queue name (atom) this demo enqueues jobs on. When
   defined, `Showcase.Common.Reset` will cancel pending jobs for this queue
   during a reset. If not implemented, reset skips job cancellation.
   """
   @callback oban_queue() :: atom() | nil
 
-  @optional_callbacks oban_queue: 0
+  @optional_callbacks description: 0, oban_queue: 0
 end
