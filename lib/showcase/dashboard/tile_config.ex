@@ -46,9 +46,9 @@ defmodule Showcase.Dashboard.TileConfig do
       description:
         "Three-way matching across contract, delivery note, and invoice. AI verdicts are explainable; configurable tolerances drive the routing.",
       roi_hook: "AP clerks see only the ambiguous middle; configuration is the dial.",
-      status: :coming_soon,
-      path: nil,
-      seeder: nil
+      status: :live,
+      path: "/invoice-approval",
+      seeder: Showcase.InvoiceApproval.Seed
     },
     %Tile{
       id: :restaurant_compliance,
