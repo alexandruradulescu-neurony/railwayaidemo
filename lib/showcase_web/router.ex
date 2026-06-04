@@ -1,6 +1,8 @@
 defmodule ShowcaseWeb.Router do
   use ShowcaseWeb, :router
 
+  import Phoenix.LiveDashboard.Router
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -14,10 +16,29 @@ defmodule ShowcaseWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :admin do
+    plug ShowcaseWeb.Plugs.AdminBasicAuth
+  end
+
   scope "/", ShowcaseWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  scope "/admin", ShowcaseWeb do
+    pipe_through [:browser, :admin]
+
+    # Stub pages — replaced by real LiveViews in later phases
+    live "/system-prompts", Admin.SystemPromptsLive
+    live "/reset", Admin.ResetLive
+    live "/audit-log", Admin.AuditLogLive
+  end
+
+  scope "/admin" do
+    pipe_through [:browser, :admin]
+
+    live_dashboard "/dashboard", metrics: ShowcaseWeb.Telemetry
   end
 
   # Other scopes may use custom stacks.
@@ -25,19 +46,11 @@ defmodule ShowcaseWeb.Router do
   #   pipe_through :api
   # end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
+  # Enable Swoosh mailbox preview in development
   if Application.compile_env(:showcase, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
-    import Phoenix.LiveDashboard.Router
-
     scope "/dev" do
       pipe_through :browser
 
-      live_dashboard "/dashboard", metrics: ShowcaseWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
