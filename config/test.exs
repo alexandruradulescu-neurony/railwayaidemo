@@ -42,3 +42,6 @@ config :phoenix,
 
 # Oban — run jobs manually in tests (no live polling against the sandboxed Repo)
 config :showcase, Oban, testing: :manual
+
+# AnthropicClient: tests use Mock to avoid real API calls
+config :showcase, :anthropic_client_impl, Showcase.Common.AnthropicClient.Mock
