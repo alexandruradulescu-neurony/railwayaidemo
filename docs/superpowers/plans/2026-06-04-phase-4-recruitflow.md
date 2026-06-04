@@ -2,19 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the RecruitFlow demo end-to-end. A Kanban board surfaces every Application across an 18-state machine. AE clicks "New candidate" → Application enters `PENDING_CALL`; "Tick scheduler" advances all 5 background jobs once; "Run AI screen" generates a synthetic phone transcript via Claude and routes via 4-outcome eval; "CV arrived" runs the 5-priority CV cascade. Every state transition writes a `Common.AuditLog` entry. Per-Position prompt templates are versioned via `Common.SystemPrompt`.
+**Goal:** Ship the RecruitFlow demo end-to-end. A Kanban board with 5 columns visualizes every Application's state. AE clicks "Run AI screen" → Claude generates a synthetic phone transcript and routes the Application via a 4-outcome eval; "CV arrived" runs the 5-priority CV cascade to match a CV to a QUALIFIED Application. Every state transition writes a `Common.AuditLog` entry.
 
-**Architecture:** Plain Ecto schemas under `rf_*` prefix. Pure `StateMachine` module defines the 18 states + transition table. Pure `Transitions` boundary wraps state changes with `AuditLog` writes inside an `Ecto.Multi`. `PhoneScreenPipeline` (multi-step: generate transcript → eval → transition). `CvMatcher` reuses `Showcase.Common.CascadeMatcher` with 5 RecruitFlow-specific step modules (exact email → exact phone → subject-line ID → fuzzy name → Claude PDF-content fallback). `Scheduler` is a plain module with 5 explicit tick functions; AE drives time via a button rather than real Oban cron (per spec — "AE-controllable clock"). Two LiveViews: `KanbanLive` at `/recruit-flow` (the board), `ApplicationDetailLive` at `/recruit-flow/applications/:id` (transcript + audit timeline + manual controls).
+**Architecture:** Plain Ecto schemas under `rf_*` prefix. Application state is one of **5 values: PENDING / QUALIFIED / HIRED / REJECTED / NEEDS_HUMAN**. Pure `StateMachine` module defines the 5-state transition table. Pure `Transitions` boundary wraps state changes with `AuditLog` writes. `PhoneScreenPipeline` runs Claude → maps outcome → transitions Application. `CvMatcher` reuses `Showcase.Common.CascadeMatcher` with 5 RecruitFlow-specific step modules. One scheduler tick (`auto_close_stale_qualified`) demonstrates the scheduler-pattern teaching point without bloat. Two LiveViews: `KanbanLive` at `/recruit-flow`, `ApplicationDetailLive` at `/recruit-flow/applications/:id`.
 
 **Tech Stack:**
 - Builds on `main` after Phase 3 merge (HEAD `07d9c2e`, tags `phase-0` through `phase-3`)
-- Plain Ecto schemas, JSONB for nested data (transcript content, CV text)
-- `Showcase.Common.AnthropicClient` (Mock in tests) with two fingerprints: `recruit_flow:phone_screen:v1` and `recruit_flow:cv_match:v1`
-- `Showcase.Common.ResilientJSONParser`, `Showcase.Common.NeedsHuman`, `Showcase.Common.AuditLog`, `Showcase.Common.CascadeMatcher`, `Showcase.Common.SystemPrompt`
-- Oban `:recruit_flow` queue (already configured in Phase 0)
-- LiveView + Phoenix.PubSub for live progress
+- Plain Ecto, JSONB for transcript / eval, no per-line item tables
+- `Showcase.Common.AnthropicClient` (Mock in tests) with fingerprints `recruit_flow:phone_screen:v1` + `recruit_flow:cv_match:v1`
+- `Showcase.Common.ResilientJSONParser`, `Showcase.Common.AuditLog`, `Showcase.Common.CascadeMatcher`
+- LiveView + Phoenix.PubSub for per-application live updates
 
 **Reference spec:** `docs/superpowers/specs/2026-06-04-neurony-ai-showcase-design.md` §4.2
+
+**Design simplification note:** the spec brief mentions an 18-state machine. Per project preference (logged 2026-06-04), the implementation uses **5 states** — the minimum that retains a recognizable funnel: PENDING → (QUALIFIED → HIRED) | REJECTED | NEEDS_HUMAN. Callback outcomes don't get their own state; they leave the Application in PENDING with an audit-log entry noting the callback request. Scheduler is one tick, not five.
 
 ---
 
@@ -27,10 +28,10 @@ lib/showcase/
     schemas/
       position.ex                                  # rf_positions
       candidate.ex                                 # rf_candidates
-      application.ex                               # rf_applications (state field)
-      cv.ex                                        # rf_cvs (uploaded CV content)
+      application.ex                               # rf_applications (state ∈ 5)
+      cv.ex                                        # rf_cvs
     impl/
-      state_machine.ex                             # 18 states + allowed?/2 + next/2
+      state_machine.ex                             # 5 states + transition table
     transitions.ex                                 # boundary: apply/3 with audit
     cascade/
       exact_email_step.ex
@@ -38,38 +39,33 @@ lib/showcase/
       subject_line_step.ex
       fuzzy_name_step.ex
       pdf_content_step.ex
-    phone_screen_pipeline.ex                       # boundary: generate transcript + eval
-    cv_matcher.ex                                  # boundary: runs cascade against Applications
-    scheduler.ex                                   # 5 tick functions
-    mock_prompts.ex                                # canned phone screen + CV match responses
+    phone_screen_pipeline.ex                       # boundary: Claude → transition
+    cv_matcher.ex                                  # boundary: cascade → QUALIFIED → HIRED
+    scheduler.ex                                   # one tick: auto_close_stale_qualified
+    mock_prompts.ex                                # canned phone + CV responses
     seed.ex                                        # DemoSeeder
 
   showcase_web/live/recruit_flow/
     kanban_live.ex
     application_detail_live.ex
-    components/
-      application_card.ex
-      kanban_column.ex
-      transition_timeline.ex
-      scheduler_ticker.ex
 
   showcase/dashboard/tile_config.ex                # MODIFY: flip recruit_flow to :live
 
 priv/repo/migrations/
   <ts>_create_recruit_flow_schemas.exs
 
-test/showcase/recruit_flow/
-  impl/state_machine_test.exs
-  transitions_test.exs
-  cascade/                                         # one test file per step
-  phone_screen_pipeline_test.exs
-  cv_matcher_test.exs
-  scheduler_test.exs
-  seed_test.exs
-
-test/showcase_web/live/recruit_flow/
-  kanban_live_test.exs
-  application_detail_live_test.exs
+test/
+  showcase/recruit_flow/
+    impl/state_machine_test.exs
+    transitions_test.exs
+    cascade_test.exs                               # 5 steps in one file
+    phone_screen_pipeline_test.exs
+    cv_matcher_test.exs
+    scheduler_test.exs
+    seed_test.exs
+  showcase_web/live/recruit_flow/
+    kanban_live_test.exs
+    application_detail_live_test.exs
 ```
 
 ---
@@ -77,10 +73,7 @@ test/showcase_web/live/recruit_flow/
 ## Task 1: Schemas + migration
 
 **Files:**
-- Create: `lib/showcase/recruit_flow/schemas/position.ex`
-- Create: `lib/showcase/recruit_flow/schemas/candidate.ex`
-- Create: `lib/showcase/recruit_flow/schemas/application.ex`
-- Create: `lib/showcase/recruit_flow/schemas/cv.ex`
+- Create: `lib/showcase/recruit_flow/schemas/{position,candidate,application,cv}.ex`
 - Create: `priv/repo/migrations/<ts>_create_recruit_flow_schemas.exs`
 
 ### Step 1: Generate migration
@@ -101,8 +94,8 @@ defmodule Showcase.Repo.Migrations.CreateRecruitFlowSchemas do
     create table(:rf_positions) do
       add :title, :string, null: false
       add :department, :string
-      add :prompt_section, :string, null: false             # FK-ish to common_system_prompts.section
-      add :default_prompt_body, :text                       # used if no SystemPrompt row exists
+      add :prompt_section, :string, null: false
+      add :default_prompt_body, :text
       timestamps(type: :utc_datetime_usec)
     end
 
@@ -121,9 +114,9 @@ defmodule Showcase.Repo.Migrations.CreateRecruitFlowSchemas do
     create table(:rf_applications) do
       add :candidate_id, references(:rf_candidates, on_delete: :delete_all), null: false
       add :position_id, references(:rf_positions, on_delete: :nilify_all)
-      add :state, :string, null: false, default: "PENDING_CALL"
-      add :transcript, :text                                # last AI phone screen output
-      add :eval, :map, default: %{}                         # {outcome, reasoning, score}
+      add :state, :string, null: false, default: "PENDING"
+      add :transcript, :text
+      add :eval, :map, default: %{}
       add :state_changed_at, :utc_datetime_usec, null: false
       timestamps(type: :utc_datetime_usec)
     end
@@ -133,12 +126,12 @@ defmodule Showcase.Repo.Migrations.CreateRecruitFlowSchemas do
 
     create table(:rf_cvs) do
       add :application_id, references(:rf_applications, on_delete: :delete_all)
-      add :candidate_email, :string                         # from email header
-      add :candidate_phone, :string                         # from email body
-      add :subject_line, :string                            # from email
-      add :pdf_text, :text, null: false                     # synthetic extracted CV content
+      add :candidate_email, :string
+      add :candidate_phone, :string
+      add :subject_line, :string
+      add :pdf_text, :text, null: false
       add :received_at, :utc_datetime_usec, null: false
-      add :match_step, :string                              # which cascade step matched
+      add :match_step, :string
       add :match_confidence, :float
       timestamps(type: :utc_datetime_usec)
     end
@@ -217,7 +210,7 @@ defmodule Showcase.RecruitFlow.Schemas.Application do
   alias Showcase.RecruitFlow.Schemas.{Candidate, Cv, Position}
 
   schema "rf_applications" do
-    field :state, :string, default: "PENDING_CALL"
+    field :state, :string, default: "PENDING"
     field :transcript, :string
     field :eval, :map, default: %{}
     field :state_changed_at, :utc_datetime_usec
@@ -271,27 +264,19 @@ defmodule Showcase.RecruitFlow.Schemas.Cv do
 end
 ```
 
-### Step 7: Run migration + verify
+### Step 7: Run migration + verify + commit
 
 ```bash
 mix ecto.migrate
 mix compile --warnings-as-errors
 PGPASSWORD=postgres psql -U postgres -h localhost -d showcase_dev -c "\dt rf_*" 2>&1 | tail -10
 mix test 2>&1 | tail -3
-```
 
-Expected: 4 `rf_*` tables created, compile clean, tests unchanged (1 property + 171).
-
-### Step 8: Commit
-
-```bash
 git add lib/showcase/recruit_flow/schemas/ priv/repo/migrations/
 git commit -m "feat(recruit_flow): schemas + migration for rf_* tables"
 ```
 
-## Context
-
-Phase 4, Task 1. Branch: `phase-4-recruitflow`. Off `main` HEAD `07d9c2e` (Phase 3 merge).
+Expected: 4 rf_* tables, compile clean, tests unchanged (171 + 1 property).
 
 ## Report
 
@@ -299,55 +284,28 @@ Status, files, migration filename, test count, commit SHA.
 
 ---
 
-## Task 2: `StateMachine` pure module — 18 states + transition table (TDD)
+## Task 2: `StateMachine` — 5 states + transition table (TDD)
 
 **Files:**
 - Create: `lib/showcase/recruit_flow/impl/state_machine.ex`
 - Create: `test/showcase/recruit_flow/impl/state_machine_test.exs`
 
-**The 18 states:**
+**The 5 states:**
 
-Active:
-1. `PENDING_CALL` — initial
-2. `CALL_QUEUED` — scheduler picked up
-3. `CALL_IN_PROGRESS` — worker generating transcript
-4. `CALL_COMPLETED` — transcript ready, awaiting scoring
-5. `CALL_STUCK` — worker timed out
-6. `SCORING` — eval running
-7. `QUALIFIED` — eval positive, awaiting CV request
-8. `CALLBACK` — eval said callback later
-9. `NEEDS_HUMAN` — eval uncertain
-10. `ESCALATED` — manually escalated for human review
-11. `AWAITING_CV` — CV request sent
-12. `CV_FOLLOWUP_SENT` — second CV nudge sent
-13. `CV_RECEIVED` — CV arrived, awaiting match
-14. `CV_MATCHED` — cascade matched CV to this Application
+| State | Meaning |
+|---|---|
+| `PENDING` | Initial. AI screen not yet run, or callback requested. |
+| `QUALIFIED` | AI screen positive, awaiting CV. |
+| `HIRED` | CV matched (terminal — handoff to recruiter). |
+| `REJECTED` | AI screen negative (terminal). |
+| `NEEDS_HUMAN` | AI uncertain (terminal — escalated to human review). |
 
-Terminal:
-15. `CLOSED_HIRED_READY`
-16. `CLOSED_REJECTED` (failed eval)
-17. `CLOSED_REJECTED_STALE` (24h auto-close on rejected)
-18. `CLOSED_NO_CV` (never sent CV after follow-up)
-
-(Plus `CLOSED_FAILED` for technical errors — same total at 18 if we collapse `CV_RECEIVED` and `CV_MATCHED`. The implementer can choose either set; the spec just says "an 18-state machine.")
-
-**Transition table** (from → allowed `to`):
-- `PENDING_CALL` → `[CALL_QUEUED]`
-- `CALL_QUEUED` → `[CALL_IN_PROGRESS, CALL_STUCK]`
-- `CALL_IN_PROGRESS` → `[CALL_COMPLETED, CALL_STUCK]`
-- `CALL_STUCK` → `[CALL_QUEUED, CLOSED_FAILED]`
-- `CALL_COMPLETED` → `[SCORING]`
-- `SCORING` → `[QUALIFIED, CALLBACK, NEEDS_HUMAN, CLOSED_REJECTED]`
-- `QUALIFIED` → `[AWAITING_CV]`
-- `CALLBACK` → `[CALL_QUEUED]`
-- `NEEDS_HUMAN` → `[ESCALATED]`
-- `ESCALATED` → `[QUALIFIED, CLOSED_REJECTED]` (human decides)
-- `AWAITING_CV` → `[CV_RECEIVED, CV_FOLLOWUP_SENT]`
-- `CV_FOLLOWUP_SENT` → `[CV_RECEIVED, CLOSED_NO_CV]`
-- `CV_RECEIVED` → `[CV_MATCHED, NEEDS_HUMAN]` (cascade may flag for review)
-- `CV_MATCHED` → `[CLOSED_HIRED_READY]`
-- `CLOSED_REJECTED` → `[CLOSED_REJECTED_STALE]` (24h)
-- Terminal states (`CLOSED_*`) → `[]` (no outgoing)
+**Transitions:**
+- `PENDING` → `QUALIFIED` | `REJECTED` | `NEEDS_HUMAN` (from AI screen outcomes)
+- `PENDING` → `PENDING` (callback outcome — same state, but audit entry logged)
+- `QUALIFIED` → `HIRED` (CV matched via cascade)
+- `QUALIFIED` → `REJECTED` (stale, auto-closed by scheduler)
+- Terminal states have no outgoing transitions.
 
 ### Step 1: Failing tests
 
@@ -360,122 +318,120 @@ defmodule Showcase.RecruitFlow.Impl.StateMachineTest do
   alias Showcase.RecruitFlow.Impl.StateMachine
 
   describe "states/0" do
-    test "returns exactly 18 states" do
-      assert length(StateMachine.states()) == 18
+    test "returns exactly 5 states" do
+      assert length(StateMachine.states()) == 5
     end
 
-    test "includes PENDING_CALL and CLOSED_HIRED_READY" do
+    test "includes PENDING, QUALIFIED, HIRED, REJECTED, NEEDS_HUMAN" do
       states = StateMachine.states()
-      assert "PENDING_CALL" in states
-      assert "CLOSED_HIRED_READY" in states
+      assert "PENDING" in states
+      assert "QUALIFIED" in states
+      assert "HIRED" in states
+      assert "REJECTED" in states
+      assert "NEEDS_HUMAN" in states
     end
   end
 
   describe "allowed?/2" do
-    test "PENDING_CALL → CALL_QUEUED is allowed" do
-      assert StateMachine.allowed?("PENDING_CALL", "CALL_QUEUED")
+    test "PENDING → QUALIFIED is allowed" do
+      assert StateMachine.allowed?("PENDING", "QUALIFIED")
     end
 
-    test "PENDING_CALL → CLOSED_HIRED_READY is not allowed" do
-      refute StateMachine.allowed?("PENDING_CALL", "CLOSED_HIRED_READY")
+    test "PENDING → REJECTED is allowed" do
+      assert StateMachine.allowed?("PENDING", "REJECTED")
     end
 
-    test "terminal states have no outgoing transitions" do
-      refute StateMachine.allowed?("CLOSED_HIRED_READY", "PENDING_CALL")
-      refute StateMachine.allowed?("CLOSED_HIRED_READY", "CLOSED_REJECTED")
-      refute StateMachine.allowed?("CLOSED_REJECTED_STALE", "PENDING_CALL")
+    test "PENDING → NEEDS_HUMAN is allowed" do
+      assert StateMachine.allowed?("PENDING", "NEEDS_HUMAN")
     end
 
-    test "SCORING has 4 outgoing (qualified/callback/needs_human/rejected)" do
-      assert StateMachine.allowed?("SCORING", "QUALIFIED")
-      assert StateMachine.allowed?("SCORING", "CALLBACK")
-      assert StateMachine.allowed?("SCORING", "NEEDS_HUMAN")
-      assert StateMachine.allowed?("SCORING", "CLOSED_REJECTED")
+    test "PENDING → PENDING is allowed (callback re-queue)" do
+      assert StateMachine.allowed?("PENDING", "PENDING")
+    end
+
+    test "PENDING → HIRED is not allowed (must go through QUALIFIED)" do
+      refute StateMachine.allowed?("PENDING", "HIRED")
+    end
+
+    test "QUALIFIED → HIRED is allowed" do
+      assert StateMachine.allowed?("QUALIFIED", "HIRED")
+    end
+
+    test "QUALIFIED → REJECTED is allowed (auto-close stale)" do
+      assert StateMachine.allowed?("QUALIFIED", "REJECTED")
+    end
+
+    test "terminal states have no outgoing" do
+      refute StateMachine.allowed?("HIRED", "PENDING")
+      refute StateMachine.allowed?("REJECTED", "PENDING")
+      refute StateMachine.allowed?("NEEDS_HUMAN", "QUALIFIED")
     end
 
     test "unknown state returns false" do
-      refute StateMachine.allowed?("MADE_UP_STATE", "PENDING_CALL")
-      refute StateMachine.allowed?("PENDING_CALL", "MADE_UP_STATE")
-    end
-  end
-
-  describe "next/1" do
-    test "returns list of allowed next states" do
-      assert StateMachine.next("PENDING_CALL") == ["CALL_QUEUED"]
-      assert "QUALIFIED" in StateMachine.next("SCORING")
-      assert StateMachine.next("CLOSED_HIRED_READY") == []
+      refute StateMachine.allowed?("MADE_UP", "PENDING")
+      refute StateMachine.allowed?("PENDING", "MADE_UP")
     end
   end
 
   describe "terminal?/1" do
-    test "true for CLOSED_* states" do
-      assert StateMachine.terminal?("CLOSED_HIRED_READY")
-      assert StateMachine.terminal?("CLOSED_REJECTED")
-      assert StateMachine.terminal?("CLOSED_REJECTED_STALE")
-      assert StateMachine.terminal?("CLOSED_NO_CV")
-      assert StateMachine.terminal?("CLOSED_FAILED")
+    test "true for HIRED, REJECTED, NEEDS_HUMAN" do
+      assert StateMachine.terminal?("HIRED")
+      assert StateMachine.terminal?("REJECTED")
+      assert StateMachine.terminal?("NEEDS_HUMAN")
     end
 
-    test "false for active states" do
-      refute StateMachine.terminal?("PENDING_CALL")
-      refute StateMachine.terminal?("SCORING")
-      refute StateMachine.terminal?("AWAITING_CV")
+    test "false for PENDING, QUALIFIED" do
+      refute StateMachine.terminal?("PENDING")
+      refute StateMachine.terminal?("QUALIFIED")
+    end
+  end
+
+  describe "next/1" do
+    test "PENDING has 4 next options (incl. self-loop)" do
+      assert length(StateMachine.next("PENDING")) == 4
+    end
+
+    test "HIRED has no next" do
+      assert StateMachine.next("HIRED") == []
     end
   end
 end
 ```
 
-### Step 2: Run failing
-
-```bash
-mix test test/showcase/recruit_flow/impl/state_machine_test.exs
-```
-
-### Step 3: Implement
+### Step 2: Run failing + Step 3: Implement
 
 Create `lib/showcase/recruit_flow/impl/state_machine.ex`:
 
 ```elixir
 defmodule Showcase.RecruitFlow.Impl.StateMachine do
   @moduledoc """
-  Pure 18-state machine for RecruitFlow Applications.
+  Pure 5-state machine for RecruitFlow Applications.
 
-  States grouped by phase:
-    Pre-call:    PENDING_CALL, CALL_QUEUED, CALL_IN_PROGRESS, CALL_COMPLETED, CALL_STUCK
-    Eval:        SCORING, QUALIFIED, CALLBACK, NEEDS_HUMAN, ESCALATED
-    Post-eval:   AWAITING_CV, CV_FOLLOWUP_SENT, CV_RECEIVED, CV_MATCHED
-    Terminal:    CLOSED_HIRED_READY, CLOSED_REJECTED, CLOSED_REJECTED_STALE,
-                 CLOSED_NO_CV, CLOSED_FAILED
+  States:
+    * `PENDING` — initial; awaiting AI screen, or callback requested.
+    * `QUALIFIED` — AI screen positive, awaiting CV.
+    * `HIRED` — CV matched (terminal).
+    * `REJECTED` — AI screen negative or stale (terminal).
+    * `NEEDS_HUMAN` — AI uncertain (terminal).
 
-  Total: 18 (CLOSED_FAILED collapses with the 17 above to keep the spec's
-  "18-state machine" count).
+  Transitions:
+    * `PENDING` → `QUALIFIED | REJECTED | NEEDS_HUMAN | PENDING`
+      (the self-loop handles callback outcomes — state stays but audit entry logged)
+    * `QUALIFIED` → `HIRED | REJECTED`
+    * Terminal states have no outgoing.
   """
 
   @transitions %{
-    "PENDING_CALL" => ["CALL_QUEUED"],
-    "CALL_QUEUED" => ["CALL_IN_PROGRESS", "CALL_STUCK"],
-    "CALL_IN_PROGRESS" => ["CALL_COMPLETED", "CALL_STUCK"],
-    "CALL_STUCK" => ["CALL_QUEUED", "CLOSED_FAILED"],
-    "CALL_COMPLETED" => ["SCORING"],
-    "SCORING" => ["QUALIFIED", "CALLBACK", "NEEDS_HUMAN", "CLOSED_REJECTED"],
-    "QUALIFIED" => ["AWAITING_CV"],
-    "CALLBACK" => ["CALL_QUEUED"],
-    "NEEDS_HUMAN" => ["ESCALATED"],
-    "ESCALATED" => ["QUALIFIED", "CLOSED_REJECTED"],
-    "AWAITING_CV" => ["CV_RECEIVED", "CV_FOLLOWUP_SENT"],
-    "CV_FOLLOWUP_SENT" => ["CV_RECEIVED", "CLOSED_NO_CV"],
-    "CV_RECEIVED" => ["CV_MATCHED", "NEEDS_HUMAN"],
-    "CV_MATCHED" => ["CLOSED_HIRED_READY"],
-    "CLOSED_HIRED_READY" => [],
-    "CLOSED_REJECTED" => ["CLOSED_REJECTED_STALE"],
-    "CLOSED_REJECTED_STALE" => [],
-    "CLOSED_NO_CV" => [],
-    "CLOSED_FAILED" => []
+    "PENDING" => ["PENDING", "QUALIFIED", "REJECTED", "NEEDS_HUMAN"],
+    "QUALIFIED" => ["HIRED", "REJECTED"],
+    "HIRED" => [],
+    "REJECTED" => [],
+    "NEEDS_HUMAN" => []
   }
 
   @states Map.keys(@transitions)
 
-  @doc "All 18 states."
+  @doc "All 5 states."
   @spec states() :: list(String.t())
   def states, do: @states
 
@@ -487,28 +443,21 @@ defmodule Showcase.RecruitFlow.Impl.StateMachine do
   @spec allowed?(String.t(), String.t()) :: boolean()
   def allowed?(from, to), do: to in next(from)
 
-  @doc "Is `state` terminal (no outgoing transitions besides the auto-stale flow)?"
+  @doc "Is `state` terminal (no outgoing transitions)?"
   @spec terminal?(String.t()) :: boolean()
-  def terminal?(state), do: state in ~w(CLOSED_HIRED_READY CLOSED_REJECTED_STALE CLOSED_NO_CV CLOSED_FAILED)
+  def terminal?(state), do: state in ~w(HIRED REJECTED NEEDS_HUMAN)
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/impl/state_machine_test.exs
-```
-
-Expected: 10 tests, 0 failures.
-
-Note: I excluded `"CLOSED_REJECTED"` from `terminal?/1` because it has an outgoing auto-stale transition. Adjust the test if you prefer to call all CLOSED_* terminal — but it's a real distinction (CLOSED_REJECTED is eligible for the scheduler's stale-rejected sweep).
-
-### Step 5: Commit
-
-```bash
 git add lib/showcase/recruit_flow/impl/state_machine.ex test/showcase/recruit_flow/impl/state_machine_test.exs
-git commit -m "feat(recruit_flow): StateMachine with 18 states + transition table"
+git commit -m "feat(recruit_flow): StateMachine with 5 states + transition table"
 ```
+
+Expected: ~13 tests, 0 failures.
 
 ## Report
 
@@ -522,11 +471,11 @@ Status, test count, commit SHA.
 - Create: `lib/showcase/recruit_flow/transitions.ex`
 - Create: `test/showcase/recruit_flow/transitions_test.exs`
 
-**Contract:** `Transitions.apply/3` takes `(application_id, to_state, opts)` where `opts` carries `:actor`, `:reason`, and optional `:eval` / `:transcript` attrs to set alongside the state change. Inside `Ecto.Multi`:
+**Contract:** `Transitions.apply/3` takes `(application_id, to_state, opts)` where `opts` carries `:actor`, `:reason`, optional `:transcript` / `:eval` attrs.
 1. Load the Application.
 2. Check `StateMachine.allowed?(app.state, to_state)`.
-3. Update Application (state, state_changed_at, optionally transcript/eval).
-4. Write `Showcase.Common.AuditLog` entry with `demo: "recruit_flow"`, `entity_type: "application"`, `entity_id: app.id`, `event: "state_change"`, `payload: %{from, to, reason}`, `actor`.
+3. Update Application (state, state_changed_at, optionally transcript/eval) inside `Ecto.Multi`.
+4. Write `Common.AuditLog` entry (outside Multi, post-tx).
 5. Broadcast PubSub `{:recruit_flow, :transitioned, %{application_id, from, to}}` on `"recruit_flow:applications:#{id}"`.
 
 Returns `{:ok, updated_application}` or `{:error, :invalid_transition | _}`.
@@ -555,7 +504,7 @@ defmodule Showcase.RecruitFlow.TransitionsTest do
       |> Application.changeset(%{
         candidate_id: candidate.id,
         position_id: position.id,
-        state: "PENDING_CALL",
+        state: "PENDING",
         state_changed_at: DateTime.utc_now()
       })
       |> Repo.insert()
@@ -566,32 +515,34 @@ defmodule Showcase.RecruitFlow.TransitionsTest do
   test "apply/3 succeeds for an allowed transition", %{app: app} do
     Phoenix.PubSub.subscribe(Showcase.PubSub, "recruit_flow:applications:#{app.id}")
 
-    {:ok, updated} = Transitions.apply(app.id, "CALL_QUEUED", actor: "system", reason: "auto")
-    assert updated.state == "CALL_QUEUED"
-    assert_received {:recruit_flow, :transitioned, %{application_id: _, from: "PENDING_CALL", to: "CALL_QUEUED"}}
+    {:ok, updated} = Transitions.apply(app.id, "QUALIFIED", actor: "system", reason: "ai_qualified")
+    assert updated.state == "QUALIFIED"
+    assert_received {:recruit_flow, :transitioned, %{application_id: _, from: "PENDING", to: "QUALIFIED"}}
+  end
+
+  test "apply/3 supports the PENDING self-loop for callback outcomes", %{app: app} do
+    {:ok, updated} = Transitions.apply(app.id, "PENDING", actor: "system", reason: "callback")
+    assert updated.state == "PENDING"
   end
 
   test "apply/3 returns error for disallowed transition", %{app: app} do
     assert {:error, :invalid_transition} =
-             Transitions.apply(app.id, "CLOSED_HIRED_READY", actor: "system", reason: "skip")
+             Transitions.apply(app.id, "HIRED", actor: "system", reason: "skip")
   end
 
   test "apply/3 writes an AuditLog entry on success", %{app: app} do
-    {:ok, _} = Transitions.apply(app.id, "CALL_QUEUED", actor: "system", reason: "auto")
+    {:ok, _} = Transitions.apply(app.id, "QUALIFIED", actor: "system", reason: "ai_qualified")
 
     {:ok, audits} = Showcase.Common.AuditLog.for_entity("recruit_flow", "application", to_string(app.id))
     assert Enum.any?(audits, &(&1.event == "state_change"))
   end
 
   test "apply/3 updates eval/transcript when provided", %{app: app} do
-    # First transition to a state where these make sense
-    {:ok, _} = Transitions.apply(app.id, "CALL_QUEUED", actor: "system", reason: "auto")
-    {:ok, _} = Transitions.apply(app.id, "CALL_IN_PROGRESS", actor: "system", reason: "auto")
-    {:ok, _} = Transitions.apply(app.id, "CALL_COMPLETED", actor: "system", reason: "auto", transcript: "Hello!")
     {:ok, app2} =
-      Transitions.apply(app.id, "SCORING",
+      Transitions.apply(app.id, "QUALIFIED",
         actor: "system",
-        reason: "auto",
+        reason: "ai_qualified",
+        transcript: "Hello!",
         eval: %{"outcome" => "qualified", "score" => 0.9, "reasoning" => "Good fit"}
       )
 
@@ -601,7 +552,7 @@ defmodule Showcase.RecruitFlow.TransitionsTest do
 end
 ```
 
-### Step 2: Run failing + Step 3: Implement
+### Step 2-3: Implement
 
 Create `lib/showcase/recruit_flow/transitions.ex`:
 
@@ -611,12 +562,10 @@ defmodule Showcase.RecruitFlow.Transitions do
   Boundary that owns state transitions for RecruitFlow Applications.
 
   Every transition:
-    1. Verifies StateMachine.allowed?(from, to)
-    2. Updates Application (state + state_changed_at + optionally transcript/eval)
-    3. Writes a Common.AuditLog entry with payload %{from, to, reason}
-    4. Broadcasts {:recruit_flow, :transitioned, _} on the per-application topic
-
-  All inside a single Ecto.Multi.
+    1. Verifies StateMachine.allowed?(from, to).
+    2. Updates Application (state + state_changed_at + optionally transcript/eval).
+    3. Writes a Common.AuditLog entry with payload %{from, to, reason} (post-tx).
+    4. Broadcasts {:recruit_flow, :transitioned, _} on the per-application topic.
   """
 
   alias Ecto.Multi
@@ -625,14 +574,7 @@ defmodule Showcase.RecruitFlow.Transitions do
   alias Showcase.RecruitFlow.Schemas.Application
   alias Showcase.Repo
 
-  @type opts :: [
-          actor: String.t(),
-          reason: String.t(),
-          transcript: String.t() | nil,
-          eval: map() | nil
-        ]
-
-  @spec apply(integer(), String.t(), opts()) ::
+  @spec apply(integer(), String.t(), keyword()) ::
           {:ok, Application.t()} | {:error, :invalid_transition | term()}
   def apply(application_id, to_state, opts) do
     actor = Keyword.fetch!(opts, :actor)
@@ -661,16 +603,11 @@ defmodule Showcase.RecruitFlow.Transitions do
           |> maybe_put(:transcript, transcript)
           |> maybe_put(:eval, eval)
 
-        app
-        |> Application.changeset(attrs)
-        |> Repo.update()
+        app |> Application.changeset(attrs) |> Repo.update()
       end)
 
     case Repo.transaction(multi) do
       {:ok, %{load: app, update: updated}} ->
-        # Audit + broadcast OUTSIDE the multi (AuditLog write happens separately so
-        # transition + audit aren't transactional with each other — same pattern as
-        # the spec §6.3 calls out for Common.AuditLog usage).
         {:ok, _} =
           AuditLog
           |> Ash.Changeset.for_create(:write, %{
@@ -705,20 +642,15 @@ defmodule Showcase.RecruitFlow.Transitions do
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/transitions_test.exs
-```
-
-Expected: 4 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
 git add lib/showcase/recruit_flow/transitions.ex test/showcase/recruit_flow/transitions_test.exs
 git commit -m "feat(recruit_flow): Transitions boundary with AuditLog + PubSub"
 ```
+
+Expected: 5 tests, 0 failures.
 
 ## Report
 
@@ -731,20 +663,18 @@ Status, test count, commit SHA.
 **Files:**
 - Create: `lib/showcase/recruit_flow/mock_prompts.ex`
 
-The module exposes `phone_scenarios/0` and `cv_match_scenarios/0` lists. Each phone scenario carries a candidate seed + canned Claude response for the phone screen (with one of the 4 outcomes). Each CV match scenario carries a CV body + expected match.
-
-Create `lib/showcase/recruit_flow/mock_prompts.ex`:
+Same content as the earlier version: 4 phone scenarios (one per AI outcome) + 3 CV match scenarios.
 
 ```elixir
 defmodule Showcase.RecruitFlow.MockPrompts do
   @moduledoc """
   Curated scenarios for RecruitFlow.
 
-  * `phone_scenarios/0` — candidates with canned phone-screen responses
-    (each covers one of the 4 outcomes: qualified / not_qualified / callback / needs_human).
-  * `cv_match_scenarios/0` — CV bodies + which Application they should match against.
+  * `phone_scenarios/0` — candidates with canned phone-screen responses (one
+    per outcome: qualified / not_qualified / callback / needs_human).
+  * `cv_match_scenarios/0` — CV bodies + expected matching info.
 
-  Both lists are consumed by Seed AND by tests (via `register_mock_responses/0`).
+  Consumed by Seed + test setup via `RecruitFlow.register_mock_responses/0`.
   """
 
   @phone_scenarios [
@@ -803,12 +733,10 @@ defmodule Showcase.RecruitFlow.MockPrompts do
 end
 ```
 
-### Step 2: Compile + commit
-
 ```bash
 mix compile --warnings-as-errors 2>&1 | tail -3
 git add lib/showcase/recruit_flow/mock_prompts.ex
-git commit -m "feat(recruit_flow): MockPrompts with 4 phone scenarios + 3 CV scenarios"
+git commit -m "feat(recruit_flow): MockPrompts with 4 phone + 3 CV scenarios"
 ```
 
 ## Report
@@ -817,23 +745,21 @@ Status, scenario counts, commit SHA.
 
 ---
 
-## Task 5: `PhoneScreenPipeline` boundary (TDD)
+## Task 5: `PhoneScreenPipeline` (TDD)
 
 **Files:**
 - Create: `lib/showcase/recruit_flow/phone_screen_pipeline.ex`
 - Create: `test/showcase/recruit_flow/phone_screen_pipeline_test.exs`
 
-**Contract:** `PhoneScreenPipeline.run/2` takes an Application + `%{now}`:
-1. Transition `PENDING_CALL` (or `CALL_QUEUED` / `CALLBACK`) → `CALL_QUEUED` → `CALL_IN_PROGRESS`.
-2. Call Claude with fingerprint `recruit_flow:phone_screen:v1` + scenario = position title slug + candidate name slug.
-3. Parse `{transcript, outcome, reasoning, score}`.
-4. Transition `CALL_IN_PROGRESS` → `CALL_COMPLETED` (with transcript stored).
-5. Transition `CALL_COMPLETED` → `SCORING` (with eval stored).
-6. Transition `SCORING` → mapped target based on outcome:
+**Contract:** `PhoneScreenPipeline.run/2` takes an Application + `%{now, scenario}`:
+1. Call Claude with fingerprint `recruit_flow:phone_screen:v1`, scenario passed through.
+2. Parse `{transcript, outcome, reasoning, score}`.
+3. Map outcome → target state:
    - `qualified` → `QUALIFIED`
-   - `not_qualified` → `CLOSED_REJECTED`
-   - `callback` → `CALLBACK`
+   - `not_qualified` → `REJECTED`
    - `needs_human` → `NEEDS_HUMAN`
+   - `callback` → `PENDING` (self-loop — audit entry records the callback request)
+4. Call `Transitions.apply(app.id, target_state, ...)` with the eval + transcript.
 
 Returns `{:ok, updated_app}` or `{:error, term}`.
 
@@ -862,92 +788,82 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipelineTest do
   end
 
   defp insert_app(position, candidate_attrs) do
-    {:ok, candidate} = %Candidate{} |> Candidate.changeset(candidate_attrs) |> Repo.insert()
+    {:ok, c} = %Candidate{} |> Candidate.changeset(candidate_attrs) |> Repo.insert()
+
     {:ok, app} =
       %Application{}
       |> Application.changeset(%{
-        candidate_id: candidate.id,
+        candidate_id: c.id,
         position_id: position.id,
-        state: "PENDING_CALL",
+        state: "PENDING",
         state_changed_at: DateTime.utc_now()
       })
       |> Repo.insert()
-    {candidate, app}
+
+    app
   end
 
-  test "qualified outcome leads to QUALIFIED state", %{position: position} do
-    scenario = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "alice_qualified"))
-    {_, app} = insert_app(position, scenario.candidate)
+  defp ctx_with(scenario), do: %{now: DateTime.utc_now(), scenario: scenario}
 
-    Mock.register("recruit_flow:phone_screen:v1",
-      scenario: scenario.name,
-      text: scenario.claude_response
-    )
+  test "qualified outcome → QUALIFIED", %{position: position} do
+    s = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "alice_qualified"))
+    app = insert_app(position, s.candidate)
+    Mock.register("recruit_flow:phone_screen:v1", scenario: s.name, text: s.claude_response)
 
-    {:ok, updated} = PhoneScreenPipeline.run(app, %{now: DateTime.utc_now(), scenario: scenario.name})
-
+    {:ok, updated} = PhoneScreenPipeline.run(app, ctx_with(s.name))
     assert updated.state == "QUALIFIED"
     assert updated.eval["outcome"] == "qualified"
     assert is_binary(updated.transcript)
   end
 
-  test "not_qualified outcome leads to CLOSED_REJECTED", %{position: position} do
-    scenario = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "bob_not_qualified"))
-    {_, app} = insert_app(position, scenario.candidate)
+  test "not_qualified outcome → REJECTED", %{position: position} do
+    s = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "bob_not_qualified"))
+    app = insert_app(position, s.candidate)
+    Mock.register("recruit_flow:phone_screen:v1", scenario: s.name, text: s.claude_response)
 
-    Mock.register("recruit_flow:phone_screen:v1",
-      scenario: scenario.name,
-      text: scenario.claude_response
-    )
-
-    {:ok, updated} = PhoneScreenPipeline.run(app, %{now: DateTime.utc_now(), scenario: scenario.name})
-
-    assert updated.state == "CLOSED_REJECTED"
+    {:ok, updated} = PhoneScreenPipeline.run(app, ctx_with(s.name))
+    assert updated.state == "REJECTED"
   end
 
-  test "callback outcome leads to CALLBACK", %{position: position} do
-    scenario = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "carol_callback"))
-    {_, app} = insert_app(position, scenario.candidate)
+  test "needs_human outcome → NEEDS_HUMAN", %{position: position} do
+    s = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "dan_needs_human"))
+    app = insert_app(position, s.candidate)
+    Mock.register("recruit_flow:phone_screen:v1", scenario: s.name, text: s.claude_response)
 
-    Mock.register("recruit_flow:phone_screen:v1",
-      scenario: scenario.name,
-      text: scenario.claude_response
-    )
-
-    {:ok, updated} = PhoneScreenPipeline.run(app, %{now: DateTime.utc_now(), scenario: scenario.name})
-
-    assert updated.state == "CALLBACK"
-  end
-
-  test "needs_human outcome leads to NEEDS_HUMAN", %{position: position} do
-    scenario = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "dan_needs_human"))
-    {_, app} = insert_app(position, scenario.candidate)
-
-    Mock.register("recruit_flow:phone_screen:v1",
-      scenario: scenario.name,
-      text: scenario.claude_response
-    )
-
-    {:ok, updated} = PhoneScreenPipeline.run(app, %{now: DateTime.utc_now(), scenario: scenario.name})
-
+    {:ok, updated} = PhoneScreenPipeline.run(app, ctx_with(s.name))
     assert updated.state == "NEEDS_HUMAN"
+  end
+
+  test "callback outcome stays in PENDING (with audit entry)", %{position: position} do
+    s = Enum.find(MockPrompts.phone_scenarios(), &(&1.name == "carol_callback"))
+    app = insert_app(position, s.candidate)
+    Mock.register("recruit_flow:phone_screen:v1", scenario: s.name, text: s.claude_response)
+
+    {:ok, updated} = PhoneScreenPipeline.run(app, ctx_with(s.name))
+    assert updated.state == "PENDING"
+
+    {:ok, audits} = Showcase.Common.AuditLog.for_entity("recruit_flow", "application", to_string(app.id))
+    assert Enum.any?(audits, fn a -> a.event == "state_change" and a.payload["reason"] =~ "callback" end)
   end
 end
 ```
 
-### Step 2: Run failing + Step 3: Implement
+### Step 2-3: Implement
 
 Create `lib/showcase/recruit_flow/phone_screen_pipeline.ex`:
 
 ```elixir
 defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
   @moduledoc """
-  Boundary that orchestrates a phone screen run for an Application.
+  Boundary that runs a phone screen for an Application.
 
-  Drives the state machine: PENDING_CALL → CALL_QUEUED → CALL_IN_PROGRESS →
-  CALL_COMPLETED → SCORING → (QUALIFIED | CLOSED_REJECTED | CALLBACK | NEEDS_HUMAN).
+  Flow: Claude call → parse → map outcome → Transitions.apply.
 
-  Returns `{:ok, %Application{}}` on success, `{:error, term}` otherwise.
+  outcome → target state:
+    * "qualified"     → QUALIFIED
+    * "not_qualified" → REJECTED
+    * "needs_human"   → NEEDS_HUMAN
+    * "callback"      → PENDING (self-loop; audit entry notes the callback)
   """
 
   alias Showcase.Common.AnthropicClient
@@ -955,13 +871,12 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.RecruitFlow.Schemas.Application
   alias Showcase.RecruitFlow.Transitions
-  alias Showcase.Repo
 
   @fingerprint "recruit_flow:phone_screen:v1"
   @model "claude-haiku-4-5-20251001"
   @system_prompt """
-  You are simulating a phone screen for a recruitment funnel. Generate a brief
-  transcript (3-6 exchanges) and score the candidate.
+  You are simulating a phone screen. Generate a brief transcript (3-6 exchanges)
+  and score the candidate.
 
   Respond with JSON ONLY in this shape:
     {
@@ -974,26 +889,12 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
 
   @outcome_to_state %{
     "qualified" => "QUALIFIED",
-    "not_qualified" => "CLOSED_REJECTED",
-    "callback" => "CALLBACK",
-    "needs_human" => "NEEDS_HUMAN"
+    "not_qualified" => "REJECTED",
+    "needs_human" => "NEEDS_HUMAN",
+    "callback" => "PENDING"
   }
 
   def run(%Application{} = app, %{now: _now, scenario: scenario}) do
-    with {:ok, _} <- transition(app.id, "CALL_QUEUED"),
-         {:ok, _} <- transition(app.id, "CALL_IN_PROGRESS"),
-         {:ok, response} <- call_claude(scenario),
-         {:ok, parsed, _} <- ResilientJSONParser.parse(response.text),
-         {:ok, _} <- transition(app.id, "CALL_COMPLETED", transcript: parsed["transcript"]),
-         {:ok, _} <- transition(app.id, "SCORING", eval: parsed),
-         {:ok, updated} <- transition_outcome(app.id, parsed["outcome"]) do
-      {:ok, updated}
-    else
-      {:error, _} = err -> err
-    end
-  end
-
-  defp call_claude(scenario) do
     req = %Request{
       model: @model,
       messages: [%{role: "user", content: "Run a phone screen."}],
@@ -1001,36 +902,38 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
       metadata: %{fingerprint: @fingerprint, scenario: scenario}
     }
 
-    AnthropicClient.call(req)
+    with {:ok, response} <- AnthropicClient.call(req),
+         {:ok, parsed, _completeness} <- ResilientJSONParser.parse(response.text),
+         {:ok, target} <- target_state(parsed["outcome"]),
+         {:ok, updated} <-
+           Transitions.apply(app.id, target,
+             actor: "system",
+             reason: "ai_screen:#{parsed["outcome"]}",
+             transcript: parsed["transcript"],
+             eval: parsed
+           ) do
+      {:ok, updated}
+    end
   end
 
-  defp transition(application_id, to_state, opts \\ []) do
-    Transitions.apply(application_id, to_state, [actor: "system", reason: "phone_screen"] ++ opts)
-  end
-
-  defp transition_outcome(application_id, outcome) do
+  defp target_state(outcome) do
     case Map.get(@outcome_to_state, outcome) do
       nil -> {:error, {:unknown_outcome, outcome}}
-      state -> Transitions.apply(application_id, state, actor: "system", reason: "eval:#{outcome}")
+      state -> {:ok, state}
     end
   end
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/phone_screen_pipeline_test.exs
-```
-
-Expected: 4 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
 git add lib/showcase/recruit_flow/phone_screen_pipeline.ex test/showcase/recruit_flow/phone_screen_pipeline_test.exs
 git commit -m "feat(recruit_flow): PhoneScreenPipeline with 4-outcome routing"
 ```
+
+Expected: 4 tests, 0 failures.
 
 ## Report
 
@@ -1038,23 +941,13 @@ Status, test count, commit SHA.
 
 ---
 
-## Task 6: 5-priority CV cascade step modules
+## Task 6: 5-priority CV cascade step modules (TDD)
 
 **Files:**
-- Create: `lib/showcase/recruit_flow/cascade/exact_email_step.ex`
-- Create: `lib/showcase/recruit_flow/cascade/exact_phone_step.ex`
-- Create: `lib/showcase/recruit_flow/cascade/subject_line_step.ex`
-- Create: `lib/showcase/recruit_flow/cascade/fuzzy_name_step.ex`
-- Create: `lib/showcase/recruit_flow/cascade/pdf_content_step.ex`
-- Create: `test/showcase/recruit_flow/cascade_test.exs` (single combined file — each step gets a describe block)
+- Create: `lib/showcase/recruit_flow/cascade/{exact_email,exact_phone,subject_line,fuzzy_name,pdf_content}_step.ex`
+- Create: `test/showcase/recruit_flow/cascade_test.exs`
 
-**Contract:** Each step implements `Showcase.Common.CascadeMatcher.Step`. Input is `%{email, phone, subject_line, pdf_text}` map; context is `%{repo, now}`. Each returns `{:match, application_id, confidence} | :no_match`.
-
-- **ExactEmailStep**: find Candidate by exact email → Application in AWAITING_CV / CV_FOLLOWUP_SENT state. 1.0 confidence.
-- **ExactPhoneStep**: same but by phone. 1.0.
-- **SubjectLineStep**: parse `Application #C-(\d+)` pattern from subject. 1.0.
-- **FuzzyNameStep**: pg_trgm similarity between PDF-extracted name and candidate names. ≥0.6 threshold.
-- **PdfContentStep**: Claude call with fingerprint `recruit_flow:cv_match:v1` returns matched candidate name; look up via exact name match. 0.7-0.8 confidence.
+**Same as before** — 5 step modules each implementing `Showcase.Common.CascadeMatcher.Step`. The "awaiting CV" predicate now checks `state == "QUALIFIED"` (single state, no more `state in [AWAITING_CV, CV_FOLLOWUP_SENT]`).
 
 ### Step 1: Combined failing tests
 
@@ -1097,7 +990,7 @@ defmodule Showcase.RecruitFlow.CascadeTest do
       |> Application.changeset(%{
         candidate_id: candidate.id,
         position_id: position.id,
-        state: "AWAITING_CV",
+        state: "QUALIFIED",
         state_changed_at: DateTime.utc_now()
       })
       |> Repo.insert()
@@ -1191,13 +1084,7 @@ defmodule Showcase.RecruitFlow.CascadeTest do
 end
 ```
 
-### Step 2: Run failing
-
-```bash
-mix test test/showcase/recruit_flow/cascade_test.exs
-```
-
-### Step 3: Implement all 5 step modules
+### Step 2-3: Implement all 5 step modules
 
 Create `lib/showcase/recruit_flow/cascade/exact_email_step.ex`:
 
@@ -1209,8 +1096,6 @@ defmodule Showcase.RecruitFlow.Cascade.ExactEmailStep do
 
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
-  @awaiting_cv_states ~w(AWAITING_CV CV_FOLLOWUP_SENT)
-
   @impl true
   def name, do: :exact_email
 
@@ -1219,7 +1104,7 @@ defmodule Showcase.RecruitFlow.Cascade.ExactEmailStep do
     case repo.one(
            from a in Application,
              join: c in Candidate, on: c.id == a.candidate_id,
-             where: c.email == ^email and a.state in ^@awaiting_cv_states,
+             where: c.email == ^email and a.state == "QUALIFIED",
              select: a.id,
              limit: 1
          ) do
@@ -1242,8 +1127,6 @@ defmodule Showcase.RecruitFlow.Cascade.ExactPhoneStep do
 
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
-  @awaiting_cv_states ~w(AWAITING_CV CV_FOLLOWUP_SENT)
-
   @impl true
   def name, do: :exact_phone
 
@@ -1252,7 +1135,7 @@ defmodule Showcase.RecruitFlow.Cascade.ExactPhoneStep do
     case repo.one(
            from a in Application,
              join: c in Candidate, on: c.id == a.candidate_id,
-             where: c.phone == ^phone and a.state in ^@awaiting_cv_states,
+             where: c.phone == ^phone and a.state == "QUALIFIED",
              select: a.id,
              limit: 1
          ) do
@@ -1273,8 +1156,6 @@ defmodule Showcase.RecruitFlow.Cascade.SubjectLineStep do
 
   alias Showcase.RecruitFlow.Schemas.Application
 
-  @awaiting_cv_states ~w(AWAITING_CV CV_FOLLOWUP_SENT)
-
   @impl true
   def name, do: :subject_line
 
@@ -1283,8 +1164,7 @@ defmodule Showcase.RecruitFlow.Cascade.SubjectLineStep do
     case Regex.run(~r/Application #C-(\d+)/i, subj) do
       [_, id_string] ->
         with {id, ""} <- Integer.parse(id_string),
-             %Application{state: state} = app when state in @awaiting_cv_states <-
-               repo.get(Application, id) do
+             %Application{state: "QUALIFIED"} = app <- repo.get(Application, id) do
           {:match, app.id, 1.0}
         else
           _ -> :no_match
@@ -1309,7 +1189,6 @@ defmodule Showcase.RecruitFlow.Cascade.FuzzyNameStep do
 
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
-  @awaiting_cv_states ~w(AWAITING_CV CV_FOLLOWUP_SENT)
   @similarity_threshold 0.6
 
   @impl true
@@ -1317,7 +1196,6 @@ defmodule Showcase.RecruitFlow.Cascade.FuzzyNameStep do
 
   @impl true
   def try_match(%{pdf_text: pdf}, %{repo: repo}) when is_binary(pdf) and pdf != "" do
-    # Extract a likely-name token: the first two capitalized words.
     name_guess =
       case Regex.run(~r/([A-Z][a-z]+ [A-Z][a-z]+)/, pdf) do
         [_, n] -> n
@@ -1332,7 +1210,7 @@ defmodule Showcase.RecruitFlow.Cascade.FuzzyNameStep do
         query =
           from a in Application,
             join: c in Candidate, on: c.id == a.candidate_id,
-            where: a.state in ^@awaiting_cv_states,
+            where: a.state == "QUALIFIED",
             select: {a.id, c.name, fragment("similarity(?, ?)", c.name, ^guess)},
             order_by: [desc: fragment("similarity(?, ?)", c.name, ^guess)],
             limit: 1
@@ -1361,7 +1239,6 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
-  @awaiting_cv_states ~w(AWAITING_CV CV_FOLLOWUP_SENT)
   @fingerprint "recruit_flow:cv_match:v1"
   @model "claude-haiku-4-5-20251001"
 
@@ -1384,7 +1261,7 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
            repo.one(
              from a in Application,
                join: c in Candidate, on: c.id == a.candidate_id,
-               where: c.name == ^name and a.state in ^@awaiting_cv_states,
+               where: c.name == ^name and a.state == "QUALIFIED",
                limit: 1
            ) do
       {:match, app.id, conf}
@@ -1397,20 +1274,15 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/cascade_test.exs
+git add lib/showcase/recruit_flow/cascade/ test/showcase/recruit_flow/cascade_test.exs
+git commit -m "feat(recruit_flow): 5-priority CV cascade steps"
 ```
 
 Expected: 9 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
-git add lib/showcase/recruit_flow/cascade/ test/showcase/recruit_flow/cascade_test.exs
-git commit -m "feat(recruit_flow): 5-priority CV cascade steps (email, phone, subject, fuzzy, PDF)"
-```
 
 ## Report
 
@@ -1418,16 +1290,16 @@ Status, test count, commit SHA.
 
 ---
 
-## Task 7: `CvMatcher` boundary + `CvIntake` flow (TDD)
+## Task 7: `CvMatcher` boundary (TDD)
 
 **Files:**
 - Create: `lib/showcase/recruit_flow/cv_matcher.ex`
 - Create: `test/showcase/recruit_flow/cv_matcher_test.exs`
 
 **Contract:** `CvMatcher.process_cv/2` takes a `%{email, phone, subject_line, pdf_text}` payload + `%{now}`:
-1. Run `CascadeMatcher.run/3` with the 5 steps in priority order.
-2. If matched: insert a CV row with `application_id`, `match_step`, `match_confidence`. Transition the Application to `CV_RECEIVED`, then if confidence ≥ 0.7 transition to `CV_MATCHED`.
-3. If no match: insert CV with `application_id: nil`. Return `:no_match`.
+1. Run `CascadeMatcher.run/3` with 5 steps.
+2. If matched: insert a CV row + transition Application QUALIFIED → HIRED.
+3. If no match: return `{:no_match, outcome}` (no DB writes).
 
 Returns `{:ok, %Cv{}, %Outcome{}}` or `{:no_match, %Outcome{}}`.
 
@@ -1466,7 +1338,7 @@ defmodule Showcase.RecruitFlow.CvMatcherTest do
       |> Application.changeset(%{
         candidate_id: candidate.id,
         position_id: position.id,
-        state: "AWAITING_CV",
+        state: "QUALIFIED",
         state_changed_at: DateTime.utc_now()
       })
       |> Repo.insert()
@@ -1474,7 +1346,7 @@ defmodule Showcase.RecruitFlow.CvMatcherTest do
     {:ok, %{app: app, candidate: candidate}}
   end
 
-  test "process_cv with matching email → Application transitions to CV_MATCHED", %{app: app} do
+  test "process_cv with matching email → Application transitions to HIRED", %{app: app} do
     payload = %{
       email: "alice@example.com",
       phone: nil,
@@ -1490,10 +1362,10 @@ defmodule Showcase.RecruitFlow.CvMatcherTest do
     assert cv.match_step == "exact_email"
 
     updated_app = Repo.get!(Application, app.id)
-    assert updated_app.state == "CV_MATCHED"
+    assert updated_app.state == "HIRED"
   end
 
-  test "process_cv with no match → CV inserted with nil application_id" do
+  test "process_cv with no match → returns :no_match" do
     payload = %{
       email: "ghost@nowhere.com",
       phone: nil,
@@ -1502,15 +1374,12 @@ defmodule Showcase.RecruitFlow.CvMatcherTest do
     }
 
     {:no_match, outcome} = CvMatcher.process_cv(payload, %{now: DateTime.utc_now()})
-
     refute outcome.matched
-    # No CV row inserted for unmatched (since application_id is required for the demo)
-    # If we change the spec to insert orphan CVs, adjust here.
   end
 end
 ```
 
-### Step 2: Run failing + Step 3: Implement
+### Step 2-3: Implement
 
 Create `lib/showcase/recruit_flow/cv_matcher.ex`:
 
@@ -1518,7 +1387,7 @@ Create `lib/showcase/recruit_flow/cv_matcher.ex`:
 defmodule Showcase.RecruitFlow.CvMatcher do
   @moduledoc """
   Boundary that runs the 5-priority CV cascade and transitions the matched
-  Application to CV_RECEIVED → CV_MATCHED.
+  Application from QUALIFIED → HIRED.
   """
 
   alias Showcase.Common.CascadeMatcher
@@ -1541,8 +1410,6 @@ defmodule Showcase.RecruitFlow.CvMatcher do
     PdfContentStep
   ]
 
-  @high_confidence 0.7
-
   def process_cv(payload, %{now: now}) do
     context = %{repo: Repo, now: now}
     outcome = CascadeMatcher.run(@cascade_steps, payload, context)
@@ -1562,42 +1429,29 @@ defmodule Showcase.RecruitFlow.CvMatcher do
         })
         |> Repo.insert()
 
-      # Transition the Application to CV_RECEIVED, then if confidence high enough to CV_MATCHED.
-      with {:ok, _} <-
-             Transitions.apply(outcome.value, "CV_RECEIVED",
-               actor: "system",
-               reason: "cv_arrived:#{outcome.step}"
-             ),
-           {:ok, _} <- maybe_match(outcome) do
-        {:ok, cv, outcome}
-      end
+      {:ok, _} =
+        Transitions.apply(outcome.value, "HIRED",
+          actor: "system",
+          reason: "cv_matched:#{outcome.step}"
+        )
+
+      {:ok, cv, outcome}
     else
       {:no_match, outcome}
     end
   end
-
-  defp maybe_match(%{value: app_id, confidence: conf}) when conf >= @high_confidence do
-    Transitions.apply(app_id, "CV_MATCHED", actor: "system", reason: "high_confidence_cv_match")
-  end
-
-  defp maybe_match(_), do: {:ok, :stays_in_cv_received}
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/cv_matcher_test.exs
+git add lib/showcase/recruit_flow/cv_matcher.ex test/showcase/recruit_flow/cv_matcher_test.exs
+git commit -m "feat(recruit_flow): CvMatcher boundary — cascade + QUALIFIED → HIRED"
 ```
 
 Expected: 2 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
-git add lib/showcase/recruit_flow/cv_matcher.ex test/showcase/recruit_flow/cv_matcher_test.exs
-git commit -m "feat(recruit_flow): CvMatcher boundary with 5-step cascade"
-```
 
 ## Report
 
@@ -1605,23 +1459,15 @@ Status, test count, commit SHA.
 
 ---
 
-## Task 8: `Scheduler` module with 5 tick functions (TDD)
+## Task 8: `Scheduler` with one tick (TDD)
 
 **Files:**
 - Create: `lib/showcase/recruit_flow/scheduler.ex`
 - Create: `test/showcase/recruit_flow/scheduler_test.exs`
 
-**Contract:** 5 public functions, each one tick of one job. All idempotent (running twice on the same state produces the same result).
+**Contract:** Single tick: `Scheduler.auto_close_stale_qualified/1` takes `%{now}` and transitions QUALIFIED applications older than 7 days to REJECTED with reason `"stale_no_cv"`. Returns count of advanced applications.
 
-- `Scheduler.submit_queued_calls(%{now})` — PENDING_CALL → CALL_QUEUED for up to N applications
-- `Scheduler.poll_stuck_calls(%{now})` — CALL_STUCK → CALL_QUEUED (retry) for entries older than 5 min, else CLOSED_FAILED
-- `Scheduler.poll_cv_inbox(%{now})` — no-op for the demo (CV arrival is driven by the UI button)
-- `Scheduler.send_cv_followups(%{now})` — AWAITING_CV (older than 3 days) → CV_FOLLOWUP_SENT
-- `Scheduler.auto_close_stale_rejections(%{now})` — CLOSED_REJECTED (older than 24h) → CLOSED_REJECTED_STALE
-
-Plus `Scheduler.tick_all(%{now})` that runs all five and returns a summary `%{job_name => count}`.
-
-For the demo, `now` is supplied by caller — making tests deterministic.
+`Scheduler.tick_all/1` returns a summary map with one entry.
 
 ### Step 1: Failing tests
 
@@ -1644,7 +1490,7 @@ defmodule Showcase.RecruitFlow.SchedulerTest do
     {:ok, %{position: position}}
   end
 
-  defp insert_app(position, state, ts \\ DateTime.utc_now()) do
+  defp insert_app(position, state, ts) do
     {:ok, c} = Repo.insert(%Candidate{name: "C-#{System.unique_integer([:positive])}"})
 
     {:ok, a} =
@@ -1660,67 +1506,41 @@ defmodule Showcase.RecruitFlow.SchedulerTest do
     a
   end
 
-  test "submit_queued_calls advances all PENDING_CALL → CALL_QUEUED", %{position: position} do
-    a1 = insert_app(position, "PENDING_CALL")
-    a2 = insert_app(position, "PENDING_CALL")
-
-    count = Scheduler.submit_queued_calls(%{now: DateTime.utc_now()})
-    assert count == 2
-
-    assert Repo.get!(Application, a1.id).state == "CALL_QUEUED"
-    assert Repo.get!(Application, a2.id).state == "CALL_QUEUED"
-  end
-
-  test "send_cv_followups only touches AWAITING_CV older than 3 days", %{position: position} do
+  test "auto_close_stale_qualified only touches QUALIFIED older than 7 days", %{position: position} do
     now = DateTime.utc_now()
-    recent = insert_app(position, "AWAITING_CV", now)
-    old = insert_app(position, "AWAITING_CV", DateTime.add(now, -4, :day))
+    fresh = insert_app(position, "QUALIFIED", DateTime.add(now, -3, :day))
+    stale = insert_app(position, "QUALIFIED", DateTime.add(now, -10, :day))
+    rejected = insert_app(position, "REJECTED", DateTime.add(now, -10, :day))
 
-    count = Scheduler.send_cv_followups(%{now: now})
+    count = Scheduler.auto_close_stale_qualified(%{now: now})
     assert count == 1
 
-    assert Repo.get!(Application, recent.id).state == "AWAITING_CV"
-    assert Repo.get!(Application, old.id).state == "CV_FOLLOWUP_SENT"
-  end
-
-  test "auto_close_stale_rejections only touches CLOSED_REJECTED older than 24h", %{position: position} do
-    now = DateTime.utc_now()
-    fresh = insert_app(position, "CLOSED_REJECTED", DateTime.add(now, -2, :hour))
-    stale = insert_app(position, "CLOSED_REJECTED", DateTime.add(now, -25, :hour))
-
-    count = Scheduler.auto_close_stale_rejections(%{now: now})
-    assert count == 1
-
-    assert Repo.get!(Application, fresh.id).state == "CLOSED_REJECTED"
-    assert Repo.get!(Application, stale.id).state == "CLOSED_REJECTED_STALE"
+    assert Repo.get!(Application, fresh.id).state == "QUALIFIED"
+    assert Repo.get!(Application, stale.id).state == "REJECTED"
+    assert Repo.get!(Application, rejected.id).state == "REJECTED"
   end
 
   test "tick_all returns a summary map", %{position: position} do
-    insert_app(position, "PENDING_CALL")
+    insert_app(position, "QUALIFIED", DateTime.add(DateTime.utc_now(), -10, :day))
 
     summary = Scheduler.tick_all(%{now: DateTime.utc_now()})
     assert is_map(summary)
-    assert Map.has_key?(summary, :submit_queued_calls)
-    assert Map.has_key?(summary, :poll_stuck_calls)
-    assert Map.has_key?(summary, :poll_cv_inbox)
-    assert Map.has_key?(summary, :send_cv_followups)
-    assert Map.has_key?(summary, :auto_close_stale_rejections)
+    assert Map.has_key?(summary, :auto_close_stale_qualified)
   end
 end
 ```
 
-### Step 2: Run failing + Step 3: Implement
+### Step 2-3: Implement
 
 Create `lib/showcase/recruit_flow/scheduler.ex`:
 
 ```elixir
 defmodule Showcase.RecruitFlow.Scheduler do
   @moduledoc """
-  RecruitFlow scheduler. Five jobs visible in the UI, each idempotent.
-  AE drives the clock by clicking "Tick scheduler" — see KanbanLive.
+  RecruitFlow scheduler. One visible tick — `auto_close_stale_qualified` —
+  demonstrates the AE-driven scheduler pattern without bloat.
 
-  Five tick functions return the count of applications advanced.
-  `tick_all/1` runs all five and returns a summary map.
+  `tick_all/1` exists for UI symmetry; expand it as future ticks are added.
   """
 
   import Ecto.Query
@@ -1729,94 +1549,41 @@ defmodule Showcase.RecruitFlow.Scheduler do
   alias Showcase.RecruitFlow.Transitions
   alias Showcase.Repo
 
-  @cv_followup_age_days 3
-  @stale_rejection_age_hours 24
-  @stuck_call_age_minutes 5
+  @stale_qualified_age_days 7
 
-  def submit_queued_calls(%{now: _now}) do
-    ids = Repo.all(from a in Application, where: a.state == "PENDING_CALL", select: a.id)
-    advance_all(ids, "CALL_QUEUED", reason: "scheduler:submit_queued")
-  end
-
-  def poll_stuck_calls(%{now: now}) do
-    threshold = DateTime.add(now, -@stuck_call_age_minutes, :minute)
+  def auto_close_stale_qualified(%{now: now}) do
+    threshold = DateTime.add(now, -@stale_qualified_age_days, :day)
 
     ids =
       Repo.all(
         from a in Application,
-          where: a.state == "CALL_STUCK" and a.state_changed_at <= ^threshold,
+          where: a.state == "QUALIFIED" and a.state_changed_at <= ^threshold,
           select: a.id
       )
 
-    advance_all(ids, "CALL_QUEUED", reason: "scheduler:retry_stuck")
-  end
-
-  def poll_cv_inbox(%{now: _now}) do
-    # Demo: CV arrival driven by UI button. This tick is a no-op for now.
-    0
-  end
-
-  def send_cv_followups(%{now: now}) do
-    threshold = DateTime.add(now, -@cv_followup_age_days, :day)
-
-    ids =
-      Repo.all(
-        from a in Application,
-          where: a.state == "AWAITING_CV" and a.state_changed_at <= ^threshold,
-          select: a.id
-      )
-
-    advance_all(ids, "CV_FOLLOWUP_SENT", reason: "scheduler:cv_followup")
-  end
-
-  def auto_close_stale_rejections(%{now: now}) do
-    threshold = DateTime.add(now, -@stale_rejection_age_hours, :hour)
-
-    ids =
-      Repo.all(
-        from a in Application,
-          where: a.state == "CLOSED_REJECTED" and a.state_changed_at <= ^threshold,
-          select: a.id
-      )
-
-    advance_all(ids, "CLOSED_REJECTED_STALE", reason: "scheduler:stale_rejection")
-  end
-
-  def tick_all(%{now: now} = ctx) do
-    %{
-      submit_queued_calls: submit_queued_calls(ctx),
-      poll_stuck_calls: poll_stuck_calls(ctx),
-      poll_cv_inbox: poll_cv_inbox(ctx),
-      send_cv_followups: send_cv_followups(ctx),
-      auto_close_stale_rejections: auto_close_stale_rejections(ctx)
-    }
-  end
-
-  defp advance_all(ids, to_state, opts) do
     Enum.reduce(ids, 0, fn id, acc ->
-      case Transitions.apply(id, to_state, [actor: "system"] ++ opts) do
+      case Transitions.apply(id, "REJECTED", actor: "system", reason: "stale_no_cv") do
         {:ok, _} -> acc + 1
         {:error, _} -> acc
       end
     end)
   end
+
+  def tick_all(%{now: _now} = ctx) do
+    %{auto_close_stale_qualified: auto_close_stale_qualified(ctx)}
+  end
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
 mix test test/showcase/recruit_flow/scheduler_test.exs
-```
-
-Expected: 4 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
 git add lib/showcase/recruit_flow/scheduler.ex test/showcase/recruit_flow/scheduler_test.exs
-git commit -m "feat(recruit_flow): Scheduler with 5 tick functions + tick_all summary"
+git commit -m "feat(recruit_flow): Scheduler with single auto_close_stale_qualified tick"
 ```
+
+Expected: 2 tests, 0 failures.
 
 ## Report
 
@@ -1831,13 +1598,13 @@ Status, test count, commit SHA.
 - Create: `lib/showcase/recruit_flow/seed.ex`
 - Create: `test/showcase/recruit_flow/seed_test.exs`
 
-### Step 1: Implement context
+### Implementation
 
 Create `lib/showcase/recruit_flow.ex`:
 
 ```elixir
 defmodule Showcase.RecruitFlow do
-  @moduledoc "Public context for the RecruitFlow demo."
+  @moduledoc "Public context for RecruitFlow."
 
   import Ecto.Query
 
@@ -1869,10 +1636,7 @@ defmodule Showcase.RecruitFlow do
       Mock.register("recruit_flow:phone_screen:v1", scenario: s.name, text: s.claude_response)
     end)
 
-    # CV match scenarios — keyed by pdf_text (since that's what the cascade uses as scenario)
     Enum.each(MockPrompts.cv_match_scenarios(), fn s ->
-      # No canned response needed for CV match Claude calls unless we want to
-      # demo the PdfContentStep. For visible coverage, register one:
       Mock.register("recruit_flow:cv_match:v1",
         scenario: s.pdf_text,
         text: ~s({"candidate_name": "#{extract_name(s.pdf_text)}", "confidence": 0.75})
@@ -1888,8 +1652,6 @@ defmodule Showcase.RecruitFlow do
   end
 end
 ```
-
-### Step 2: Failing test + Step 3: Implement Seed
 
 Create `test/showcase/recruit_flow/seed_test.exs`:
 
@@ -1936,7 +1698,7 @@ Create `lib/showcase/recruit_flow/seed.ex`:
 
 ```elixir
 defmodule Showcase.RecruitFlow.Seed do
-  @moduledoc "Seeds RecruitFlow demo with positions, candidates, applications."
+  @moduledoc "Seeds RecruitFlow with positions, candidates, applications."
 
   @behaviour Showcase.Common.DemoSeeder
 
@@ -1949,7 +1711,7 @@ defmodule Showcase.RecruitFlow.Seed do
 
   @impl true
   def description do
-    "Phone-screen, score, and chase candidates through an 18-state funnel. Recruiters intervene only on the ambiguous middle."
+    "Phone-screen, score, and chase candidates through a 5-state funnel. Recruiters intervene only on the ambiguous middle."
   end
 
   @impl true
@@ -1981,7 +1743,7 @@ defmodule Showcase.RecruitFlow.Seed do
             title: "Software Engineer",
             department: "Engineering",
             prompt_section: "se_v1",
-            default_prompt_body: "You are screening for a Software Engineer role at Neurony. Focus on backend Elixir + AI integration experience."
+            default_prompt_body: "You are screening for a Software Engineer role at Neurony."
           })
           |> Repo.insert()
         p
@@ -2006,7 +1768,7 @@ defmodule Showcase.RecruitFlow.Seed do
           |> Application.changeset(%{
             candidate_id: candidate.id,
             position_id: position.id,
-            state: "PENDING_CALL",
+            state: "PENDING",
             state_changed_at: DateTime.utc_now()
           })
           |> Repo.insert!()
@@ -2018,20 +1780,13 @@ defmodule Showcase.RecruitFlow.Seed do
 end
 ```
 
-### Step 4: Run until pass
-
 ```bash
 mix test test/showcase/recruit_flow/seed_test.exs
-```
-
-Expected: 4 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
 git add lib/showcase/recruit_flow.ex lib/showcase/recruit_flow/seed.ex test/showcase/recruit_flow/seed_test.exs
 git commit -m "feat(recruit_flow): public context + Seed with DemoSeeder behaviour"
 ```
+
+Expected: 4 tests, 0 failures.
 
 ## Report
 
@@ -2046,10 +1801,7 @@ Status, test count, commit SHA.
 - Create: `test/showcase_web/live/recruit_flow/kanban_live_test.exs`
 - Modify: `lib/showcase_web/router.ex`
 
-**Contract:** Shows applications grouped into "swim lanes" (5 columns: Pre-call, Eval, Awaiting CV, CV Received, Closed). Each card is clickable → opens `/recruit-flow/applications/:id`. Includes:
-- "Tick scheduler" button → calls `Scheduler.tick_all/1`, refreshes the board.
-- "Run AI screen" button per PENDING_CALL/CALL_QUEUED card → enqueues PhoneScreenPipeline.
-- "CV arrived" button per AWAITING_CV/CV_FOLLOWUP_SENT card → picks a CV scenario, runs CvMatcher.
+**Contract:** 5 columns (one per state). Per PENDING card: "Run AI screen" with 4 scenario buttons (alice/bob/carol/dan). Per QUALIFIED card: "CV arrived" buttons for each CV scenario. "Tick scheduler" button at top.
 
 ### Step 1: Failing tests
 
@@ -2070,32 +1822,41 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLiveTest do
     :ok
   end
 
-  test "renders the board at /recruit-flow", %{conn: conn} do
+  test "renders the 5-column board", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/recruit-flow")
 
     assert html =~ "RecruitFlow"
-    assert html =~ "Pre-call"
-    assert html =~ "Eval"
+    assert html =~ "PENDING"
+    assert html =~ "QUALIFIED"
+    assert html =~ "HIRED"
+    assert html =~ "REJECTED"
+    assert html =~ "NEEDS_HUMAN"
     assert html =~ "Alice Anderson"
   end
 
-  test "tick_scheduler advances applications", %{conn: conn} do
+  test "running AI screen transitions an application", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/recruit-flow")
 
-    initial_html = render(view)
-    assert initial_html =~ "PENDING_CALL"
+    # Find the first PENDING application and trigger its AI screen with "alice_qualified"
+    render_click(view, "run_ai_screen", %{"id" => first_pending_id(view), "scenario" => "alice_qualified"})
 
-    render_click(view, "tick_scheduler", %{})
+    html = render(view)
+    assert html =~ "QUALIFIED"
+  end
 
-    after_html = render(view)
-    assert after_html =~ "CALL_QUEUED"
+  defp first_pending_id(view) do
+    # The Kanban includes phx-value-id on each Run buttons; use a simple LiveView assigns lookup.
+    # Tests rely on the seeded ordering.
+    apps = Showcase.RecruitFlow.applications_by_state()
+    pending = Map.get(apps, "PENDING", [])
+    hd(pending).id
   end
 end
 ```
 
 ### Step 2: Add routes
 
-In `lib/showcase_web/router.ex`, public scope, add:
+In `lib/showcase_web/router.ex`, public scope:
 
 ```elixir
 live "/recruit-flow", RecruitFlow.KanbanLive
@@ -2111,15 +1872,9 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
   use ShowcaseWeb, :live_view
 
   alias Showcase.RecruitFlow
-  alias Showcase.RecruitFlow.{PhoneScreenPipeline, Scheduler}
+  alias Showcase.RecruitFlow.{CvMatcher, MockPrompts, PhoneScreenPipeline, Scheduler}
 
-  @swim_lanes [
-    {"Pre-call", ~w(PENDING_CALL CALL_QUEUED CALL_IN_PROGRESS CALL_COMPLETED CALL_STUCK)},
-    {"Eval", ~w(SCORING QUALIFIED CALLBACK NEEDS_HUMAN ESCALATED)},
-    {"Awaiting CV", ~w(AWAITING_CV CV_FOLLOWUP_SENT)},
-    {"CV Received", ~w(CV_RECEIVED CV_MATCHED)},
-    {"Closed", ~w(CLOSED_HIRED_READY CLOSED_REJECTED CLOSED_REJECTED_STALE CLOSED_NO_CV CLOSED_FAILED)}
-  ]
+  @columns ~w(PENDING QUALIFIED HIRED REJECTED NEEDS_HUMAN)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -2132,8 +1887,10 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
     {:ok,
      socket
      |> assign(:page_title, "RecruitFlow")
-     |> assign(:swim_lanes, @swim_lanes)
+     |> assign(:columns, @columns)
      |> assign(:by_state, RecruitFlow.applications_by_state())
+     |> assign(:phone_scenarios, MockPrompts.phone_scenarios())
+     |> assign(:cv_scenarios, MockPrompts.cv_match_scenarios())
      |> assign(:last_tick_summary, nil)}
   end
 
@@ -2163,6 +1920,29 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
     end
   end
 
+  def handle_event("cv_arrived", %{"scenario" => scenario_name}, socket) do
+    scenario =
+      Enum.find(socket.assigns.cv_scenarios, &(&1.name == scenario_name))
+
+    payload = %{
+      email: scenario.candidate_email,
+      phone: scenario.candidate_phone,
+      subject_line: scenario.subject_line,
+      pdf_text: scenario.pdf_text
+    }
+
+    case CvMatcher.process_cv(payload, %{now: DateTime.utc_now()}) do
+      {:ok, _cv, outcome} ->
+        {:noreply,
+         socket
+         |> assign(:by_state, RecruitFlow.applications_by_state())
+         |> put_flash(:info, "CV matched via #{outcome.step}.")}
+
+      {:no_match, _} ->
+        {:noreply, put_flash(socket, :info, "CV processed; no Application matched.")}
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -2172,7 +1952,7 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
           <div>
             <h1 class="text-2xl font-semibold">RecruitFlow</h1>
             <p class="text-sm text-zinc-500 mt-1">
-              Top-of-funnel recruitment with an 18-state machine + AI phone screens.
+              5-state recruitment funnel with AI phone screens + CV cascade.
             </p>
           </div>
           <div class="flex gap-3 items-center">
@@ -2193,34 +1973,49 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
         <% end %>
       </header>
 
-      <main class="max-w-7xl mx-auto px-6 py-6 overflow-x-auto">
-        <div class="grid grid-cols-5 gap-3 min-w-[1100px]">
-          <section :for={{lane_name, states} <- @swim_lanes} class="rounded border bg-white p-3">
-            <h2 class="text-xs uppercase tracking-wide text-zinc-500 mb-2">{lane_name}</h2>
+      <main class="max-w-7xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-5 gap-3">
+          <section :for={state <- @columns} class="rounded border bg-white p-3">
+            <h2 class="text-xs uppercase tracking-wide text-zinc-500 mb-2">{state}</h2>
             <ul class="space-y-2">
-              <%= for state <- states, app <- Map.get(@by_state, state, []) do %>
-                <li class="rounded border bg-zinc-50 p-2 text-xs">
-                  <a href={"/recruit-flow/applications/#{app.id}"} class="font-medium hover:underline">
-                    {app.candidate.name}
-                  </a>
-                  <p class="text-zinc-500 mt-0.5">{app.position && app.position.title}</p>
-                  <p class="font-mono text-[10px] text-zinc-400 mt-1">{state}</p>
-                  <%= if state in ["PENDING_CALL", "CALL_QUEUED"] do %>
-                    <%= for s <- ~w(alice_qualified bob_not_qualified carol_callback dan_needs_human) do %>
-                      <button
-                        type="button"
-                        class="mt-1 text-[10px] underline text-emerald-700 mr-2"
-                        phx-click="run_ai_screen"
-                        phx-value-id={app.id}
-                        phx-value-scenario={s}
-                      >
-                        Run as: {s}
-                      </button>
-                    <% end %>
-                  <% end %>
-                </li>
-              <% end %>
+              <li :for={app <- Map.get(@by_state, state, [])} class="rounded border bg-zinc-50 p-2 text-xs">
+                <a href={"/recruit-flow/applications/#{app.id}"} class="font-medium hover:underline">
+                  {app.candidate.name}
+                </a>
+                <p class="text-zinc-500 mt-0.5">{app.position && app.position.title}</p>
+                <%= if state == "PENDING" do %>
+                  <div class="mt-2 flex flex-col gap-1">
+                    <button
+                      :for={s <- @phone_scenarios}
+                      type="button"
+                      class="text-[10px] underline text-emerald-700 text-left"
+                      phx-click="run_ai_screen"
+                      phx-value-id={app.id}
+                      phx-value-scenario={s.name}
+                    >
+                      Run as: {s.name}
+                    </button>
+                  </div>
+                <% end %>
+              </li>
             </ul>
+
+            <%= if state == "QUALIFIED" and Map.get(@by_state, "QUALIFIED", []) != [] do %>
+              <div class="mt-3 pt-3 border-t border-zinc-200">
+                <p class="text-[10px] uppercase tracking-wide text-zinc-400 mb-1">CV arrived:</p>
+                <div class="flex flex-col gap-1">
+                  <button
+                    :for={cv <- @cv_scenarios}
+                    type="button"
+                    class="text-[10px] underline text-emerald-700 text-left"
+                    phx-click="cv_arrived"
+                    phx-value-scenario={cv.name}
+                  >
+                    {cv.name}
+                  </button>
+                </div>
+              </div>
+            <% end %>
           </section>
         </div>
       </main>
@@ -2230,20 +2025,15 @@ defmodule ShowcaseWeb.RecruitFlow.KanbanLive do
 end
 ```
 
-### Step 4: Run until pass
+### Step 4-5: Run + commit
 
 ```bash
 mix test test/showcase_web/live/recruit_flow/kanban_live_test.exs 2>&1 | tail -5
+git add lib/showcase_web/live/recruit_flow/kanban_live.ex test/showcase_web/live/recruit_flow/kanban_live_test.exs lib/showcase_web/router.ex
+git commit -m "feat(web): RecruitFlow KanbanLive with 5-column board"
 ```
 
 Expected: 2 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
-git add lib/showcase_web/live/recruit_flow/kanban_live.ex test/showcase_web/live/recruit_flow/kanban_live_test.exs lib/showcase_web/router.ex
-git commit -m "feat(web): RecruitFlow KanbanLive with swim lanes + scheduler tick"
-```
 
 ## Report
 
@@ -2257,10 +2047,7 @@ Status, test count, commit SHA.
 - Create: `lib/showcase_web/live/recruit_flow/application_detail_live.ex`
 - Create: `test/showcase_web/live/recruit_flow/application_detail_live_test.exs`
 
-**Contract:** Shows one Application's transcript, eval, state history (from AuditLog), and CV cards. Has buttons:
-- "Run AI screen" — re-runs the phone screen with a chosen scenario.
-- "CV arrived" — picks a CV scenario, runs CvMatcher.
-- "Escalate" — NEEDS_HUMAN → ESCALATED via Transitions.apply.
+**Contract:** Shows one Application's transcript, eval, AuditLog timeline, and per-scenario AI screen / CV arrived buttons. Subscribes to PubSub for live updates.
 
 ### Step 1: Failing tests
 
@@ -2271,6 +2058,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLiveTest do
   use ShowcaseWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
+  import Ecto.Query
 
   alias Showcase.Common.AnthropicClient.Mock
   alias Showcase.RecruitFlow
@@ -2287,11 +2075,11 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLiveTest do
     {:ok, %{app: app}}
   end
 
-  test "renders the application detail", %{conn: conn, app: app} do
+  test "renders the detail page", %{conn: conn, app: app} do
     {:ok, _view, html} = live(conn, "/recruit-flow/applications/#{app.id}")
 
     assert html =~ app.candidate.name
-    assert html =~ "PENDING_CALL"
+    assert html =~ "PENDING"
   end
 
   test "running AI screen transitions the application", %{conn: conn, app: app} do
@@ -2300,8 +2088,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLiveTest do
     render_click(view, "run_ai_screen", %{"scenario" => "alice_qualified"})
 
     updated = Repo.get!(Application, app.id)
-    # Whatever scenario was chosen, the application should no longer be PENDING_CALL.
-    refute updated.state == "PENDING_CALL"
+    refute updated.state == "PENDING"
   end
 
   test "transition timeline shows audit log entries", %{conn: conn, app: app} do
@@ -2315,7 +2102,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLiveTest do
 end
 ```
 
-### Step 2: Run failing + Step 3: Implement
+### Step 2-3: Implement
 
 Create `lib/showcase_web/live/recruit_flow/application_detail_live.ex`:
 
@@ -2325,7 +2112,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
 
   alias Showcase.Common.AuditLog
   alias Showcase.RecruitFlow
-  alias Showcase.RecruitFlow.PhoneScreenPipeline
+  alias Showcase.RecruitFlow.{MockPrompts, PhoneScreenPipeline}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -2338,13 +2125,12 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
         Phoenix.PubSub.subscribe(Showcase.PubSub, "recruit_flow:applications:#{app.id}")
       end
 
-      {:ok, socket |> assign_app(app)}
+      {:ok, socket |> assign_app(app) |> assign(:phone_scenarios, MockPrompts.phone_scenarios())}
     end
   end
 
   defp assign_app(socket, app) do
-    {:ok, audits} =
-      AuditLog.for_entity("recruit_flow", "application", to_string(app.id))
+    {:ok, audits} = AuditLog.for_entity("recruit_flow", "application", to_string(app.id))
 
     socket
     |> assign(:page_title, "Application ##{app.id}")
@@ -2366,8 +2152,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
 
   def handle_info({:recruit_flow, :transitioned, %{application_id: id}}, socket)
       when id == socket.assigns.app.id do
-    app = RecruitFlow.find_application(id)
-    {:noreply, assign_app(socket, app)}
+    {:noreply, assign_app(socket, RecruitFlow.find_application(id))}
   end
 
   def handle_info({:recruit_flow, _, _}, socket), do: {:noreply, socket}
@@ -2415,13 +2200,13 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
             <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Run AI screen</h2>
             <div class="flex flex-col gap-2">
               <button
-                :for={s <- ~w(alice_qualified bob_not_qualified carol_callback dan_needs_human)}
+                :for={s <- @phone_scenarios}
                 type="button"
                 class="text-xs underline text-emerald-700 text-left"
                 phx-click="run_ai_screen"
-                phx-value-scenario={s}
+                phx-value-scenario={s.name}
               >
-                {s}
+                {s.name}
               </button>
             </div>
           </div>
@@ -2434,9 +2219,7 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
               <ol class="space-y-2">
                 <li :for={entry <- @audit} class="text-xs border-l-2 border-zinc-200 pl-2">
                   <p class="font-medium">{entry.event}</p>
-                  <p class="text-zinc-500">
-                    {entry.payload["from"]} → {entry.payload["to"]}
-                  </p>
+                  <p class="text-zinc-500">{entry.payload["from"]} → {entry.payload["to"]}</p>
                   <p class="text-zinc-400">{entry.inserted_at}</p>
                 </li>
               </ol>
@@ -2450,20 +2233,15 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
 end
 ```
 
-### Step 4: Run until pass
+### Step 4: Run + commit
 
 ```bash
-mix test test/showcase_web/live/recruit_flow/application_detail_live_test.exs 2>&1 | tail -5
+mix test test/showcase_web/live/recruit_flow/application_detail_live_test.exs
+git add lib/showcase_web/live/recruit_flow/application_detail_live.ex test/showcase_web/live/recruit_flow/application_detail_live_test.exs
+git commit -m "feat(web): RecruitFlow ApplicationDetailLive with transcript + audit timeline"
 ```
 
 Expected: 3 tests, 0 failures.
-
-### Step 5: Commit
-
-```bash
-git add lib/showcase_web/live/recruit_flow/application_detail_live.ex test/showcase_web/live/recruit_flow/application_detail_live_test.exs
-git commit -m "feat(web): RecruitFlow ApplicationDetailLive with transcript + timeline"
-```
 
 ## Report
 
@@ -2471,7 +2249,7 @@ Status, test count, commit SHA.
 
 ---
 
-## Task 12: TileConfig flip + Smoke test + phase-4 tag
+## Task 12: TileConfig flip + smoke test + phase-4 tag
 
 **Files:**
 - Modify: `lib/showcase/dashboard/tile_config.ex`
@@ -2486,7 +2264,7 @@ In `lib/showcase/dashboard/tile_config.ex`, replace the `:recruit_flow` entry:
       id: :recruit_flow,
       title: "RecruitFlow",
       description:
-        "Phone-screen, score, and chase candidates through a complete recruitment funnel with a state-machine-driven pipeline.",
+        "Phone-screen, score, and chase candidates through a 5-state recruitment funnel with AI screens + CV cascade.",
       roi_hook: "Recruiters intervene only on the ambiguous middle — everything else moves automatically.",
       status: :live,
       path: "/recruit-flow",
@@ -2494,11 +2272,9 @@ In `lib/showcase/dashboard/tile_config.ex`, replace the `:recruit_flow` entry:
     },
 ```
 
-(Only `status`, `path`, and `seeder` change.)
-
 ### Step 2: Update tile_config_test.exs
 
-Find the existing test `"OrderFlow and Invoice Approval are live"` and replace with:
+Replace the test `"OrderFlow and Invoice Approval are live"` with:
 
 ```elixir
     test "OrderFlow, Invoice Approval, and RecruitFlow are live" do
@@ -2522,55 +2298,25 @@ Find the existing test `"OrderFlow and Invoice Approval are live"` and replace w
     end
 ```
 
-(Remove the old "RecruitFlow, Planogram, Restaurant Compliance are coming_soon" test if it's still there.)
+Remove any earlier "are coming_soon" test that included `:recruit_flow`.
 
-### Step 3: Run tests
-
-```bash
-mix test test/showcase/dashboard/tile_config_test.exs test/showcase/dashboard_test.exs test/showcase_web/live/dashboard_live_test.exs test/showcase_web/live/admin/reset_live_test.exs 2>&1 | tail -5
-```
-
-Expected: all green.
-
-### Step 4: Full suite
+### Step 3-7: Run + smoke + tag + commit
 
 ```bash
 mix test 2>&1 | tail -3
-```
-
-Expected: full suite green (~210 tests).
-
-### Step 5: Compile clean
-
-```bash
 mix compile --warnings-as-errors 2>&1 | tail -3
-```
-
-### Step 6: Boot + smoke routes
-
-```bash
 curl -s -o /dev/null -w "GET / → %{http_code}\n" http://localhost:4321/
 curl -s -o /dev/null -w "GET /recruit-flow → %{http_code}\n" http://localhost:4321/recruit-flow
 curl -s -o /dev/null -w "GET /admin/reset auth → %{http_code}\n" -u admin:changeme http://localhost:4321/admin/reset
-```
 
-Expected: all 200.
+git add lib/showcase/dashboard/tile_config.ex test/showcase/dashboard/tile_config_test.exs
+git commit -m "feat(dashboard): flip RecruitFlow tile from coming_soon to live"
 
-### Step 7: Tag
-
-```bash
-git tag -a phase-4 -m "Phase 4 RecruitFlow complete: 18-state machine, AI phone screen, 5-priority CV cascade, scheduler ticks"
+git tag -a phase-4 -m "Phase 4 RecruitFlow complete: 5-state machine, AI phone screen, 5-priority CV cascade"
 git tag -l 'phase-*'
 ```
 
-Expected: `phase-0` through `phase-4` listed.
-
-### Step 8: Commit
-
-```bash
-git add lib/showcase/dashboard/tile_config.ex test/showcase/dashboard/tile_config_test.exs
-git commit -m "feat(dashboard): flip RecruitFlow tile from coming_soon to live"
-```
+Expected: all 200, ~200 tests, tags phase-0..phase-4.
 
 ## Report
 
@@ -2580,15 +2326,13 @@ Status, test count, route responses, tag confirmation.
 
 ## Phase 4 acceptance criteria
 
-When all 12 tasks are done:
-
-- [ ] `mix test` green; ~210 tests pass
+- [ ] `mix test` green; ~200 tests pass
 - [ ] `mix compile --warnings-as-errors` clean
-- [ ] `GET /recruit-flow` renders the Kanban with 5 swim lanes
+- [ ] `GET /recruit-flow` renders 5-column board (PENDING / QUALIFIED / HIRED / REJECTED / NEEDS_HUMAN)
 - [ ] `GET /recruit-flow/applications/:id` renders transcript + eval + audit timeline
-- [ ] "Tick scheduler" advances PENDING_CALL → CALL_QUEUED
-- [ ] "Run AI screen" with each of 4 scenarios drives the application to QUALIFIED / CLOSED_REJECTED / CALLBACK / NEEDS_HUMAN
-- [ ] AuditLog entries record every state transition
+- [ ] "Run AI screen" with each of 4 scenarios drives Application to QUALIFIED / REJECTED / NEEDS_HUMAN / (PENDING for callback)
+- [ ] "CV arrived" + matching scenario transitions QUALIFIED → HIRED
+- [ ] AuditLog records every state transition (including PENDING self-loops for callback)
 - [ ] Dashboard `/` shows RecruitFlow as `:live`
 - [ ] `/admin/reset` has a "Reset RecruitFlow" button
 - [ ] `phase-4` tag in git history
