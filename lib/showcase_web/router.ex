@@ -26,6 +26,8 @@ defmodule ShowcaseWeb.Router do
     live "/", DashboardLive
     live "/order-flow", OrderFlow.InboxLive
     live "/order-flow/orders/:id", OrderFlow.OrderDetailLive
+    live "/invoice-approval", InvoiceApproval.QueueLive
+    live "/invoice-approval/bundles/:id", InvoiceApproval.BundleDetailLive
   end
 
   scope "/admin", ShowcaseWeb do

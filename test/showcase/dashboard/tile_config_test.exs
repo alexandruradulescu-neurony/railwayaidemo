@@ -28,14 +28,22 @@ defmodule Showcase.Dashboard.TileConfigTest do
       end)
     end
 
-    test "OrderFlow is live; the rest are coming_soon" do
+    test "OrderFlow and Invoice Approval are live" do
       by_id = Enum.into(TileConfig.all(), %{}, &{&1.id, &1})
 
       assert by_id[:order_flow].status == :live
       assert by_id[:order_flow].path == "/order-flow"
       assert by_id[:order_flow].seeder == Showcase.OrderFlow.Seed
 
-      Enum.each([:recruit_flow, :planogram, :invoice_approval, :restaurant_compliance], fn id ->
+      assert by_id[:invoice_approval].status == :live
+      assert by_id[:invoice_approval].path == "/invoice-approval"
+      assert by_id[:invoice_approval].seeder == Showcase.InvoiceApproval.Seed
+    end
+
+    test "RecruitFlow, Planogram, Restaurant Compliance are coming_soon" do
+      by_id = Enum.into(TileConfig.all(), %{}, &{&1.id, &1})
+
+      Enum.each([:recruit_flow, :planogram, :restaurant_compliance], fn id ->
         assert by_id[id].status == :coming_soon
         assert by_id[id].path == nil
         assert by_id[id].seeder == nil
