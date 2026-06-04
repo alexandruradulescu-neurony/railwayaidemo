@@ -8,8 +8,15 @@ defmodule Showcase.Common.Reset do
     3. Call the seeder's `seed/0` to re-populate baseline state.
     4. Broadcast `{:reset, demo_name}` on `<topic_prefix>:<slug>:reset` per demo.
 
-  All steps run inside a single transaction so a partial reset never leaves
-  the database in a torn state.
+  **Transactionality:** Steps 2 and 3 run inside a single `Ecto.Multi`
+  transaction — truncate + reseed are atomic relative to each other. Step 1
+  (Oban cancel) writes to the `oban_jobs` table via `Oban.cancel_all_jobs/1`
+  and is NOT rolled back if a later step fails — cancellations are
+  fire-and-forget. Step 4 (broadcast) only runs on transaction success.
+
+  In practice this is fine: if reset aborts mid-flight, the dev runs reset
+  again. The point of the Multi is to keep the database internally consistent
+  even on partial failure, not to make Oban transactional with Postgres.
   """
 
   import Ecto.Query, only: [where: 3]
