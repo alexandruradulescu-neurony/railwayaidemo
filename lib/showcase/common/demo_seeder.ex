@@ -4,6 +4,10 @@ defmodule Showcase.Common.DemoSeeder do
   reset orchestrator calls `c:tables/0` and `c:seed/0`.
 
   Seeders MUST be idempotent: running `seed/0` twice produces identical state.
+
+  An optional `c:oban_queue/0` callback may be implemented by demos that
+  enqueue background jobs; when present, `Showcase.Common.Reset` cancels
+  pending jobs on that queue during reset.
   """
 
   @doc """
@@ -26,4 +30,13 @@ defmodule Showcase.Common.DemoSeeder do
   Human-readable demo name for dashboard tile and reset UI.
   """
   @callback name() :: String.t()
+
+  @doc """
+  Optional. The Oban queue name (atom) this demo enqueues jobs on. When
+  defined, `Showcase.Common.Reset` will cancel pending jobs for this queue
+  during a reset. If not implemented, reset skips job cancellation.
+  """
+  @callback oban_queue() :: atom() | nil
+
+  @optional_callbacks oban_queue: 0
 end
