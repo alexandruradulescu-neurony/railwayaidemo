@@ -17,8 +17,23 @@ defmodule Showcase.Common.CascadeMatcher do
     Contract for an individual cascade step.
 
     Steps are pure functions of `(input, context) -> step_result`. They MUST NOT
-    read the clock or perform IO directly — context carries everything they
-    need (Repo handle, current time, etc.).
+    read the clock or perform IO directly — context carries everything they need.
+
+    **Context convention** (consumed by Phase 1 OrderFlow + Phase 4 RecruitFlow):
+
+    ```elixir
+    %{
+      repo: Showcase.Repo,       # required for steps that query the DB
+      now: ~U[2026-06-04 12:00:00Z],  # optional — supplied by the boundary if a step
+                                      # needs a notion of "now" (e.g., alias decay)
+      # demo-specific keys may be added by the caller, e.g.:
+      client_id: 42,             # OrderFlow: which client's aliases to consider
+      position_id: 7             # RecruitFlow: which position's CVs to match against
+    }
+    ```
+
+    Steps should pattern-match on the keys they need and ignore the rest. The
+    boundary that invokes the cascade is responsible for constructing the context.
     """
 
     @type input :: term()
