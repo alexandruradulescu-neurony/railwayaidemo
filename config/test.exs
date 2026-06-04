@@ -39,3 +39,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Oban — run jobs manually in tests (no live polling against the sandboxed Repo)
+config :showcase, Oban, testing: :manual
