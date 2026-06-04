@@ -2,25 +2,25 @@ defmodule Showcase.Common.ResilientJSONParser do
   @moduledoc """
   Parses JSON that may be truncated, salvaging what it can.
 
-  When `Jason.decode/1` succeeds on the input, returns the decoded term with
-  `complete: true`. When it fails (e.g. an LLM response was cut off mid-stream),
+  When `Jason.decode/1` succeeds on the input, returns the decoded term tagged
+  `:complete`. When it fails (e.g. an LLM response was cut off mid-stream),
   the parser walks the input collecting positions where the prefix-so-far is a
   parsable JSON document once balanced with synthesized closing brackets. It
   then walks those candidates back-to-front, retrying the parse until one
   succeeds.
 
   Returns:
-    * `{:ok, term, complete: true}` — input parsed cleanly
-    * `{:ok, term, complete: false}` — input was truncated, partial parse salvaged
+    * `{:ok, term, :complete}` — input parsed cleanly
+    * `{:ok, term, :partial}` — input was truncated, partial parse salvaged
     * `{:error, reason}` — input was unrecoverable
   """
 
   @spec parse(binary()) ::
-          {:ok, term(), [{:complete, boolean()}]} | {:error, term()}
+          {:ok, term(), :complete | :partial} | {:error, term()}
   def parse(input) when is_binary(input) do
     case Jason.decode(input) do
       {:ok, value} ->
-        {:ok, value, complete: true}
+        {:ok, value, :complete}
 
       {:error, _reason} ->
         salvage(input)
@@ -49,11 +49,11 @@ defmodule Showcase.Common.ResilientJSONParser do
 
     case try_candidates(input, real_candidates) do
       {:ok, value} ->
-        {:ok, value, complete: false}
+        {:ok, value, :partial}
 
       :error ->
         case try_candidates(input, fallback_candidates) do
-          {:ok, value} -> {:ok, value, complete: false}
+          {:ok, value} -> {:ok, value, :partial}
           :error -> {:error, :unrecoverable}
         end
     end
