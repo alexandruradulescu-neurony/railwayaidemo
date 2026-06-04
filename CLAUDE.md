@@ -3,6 +3,11 @@
 This project is the Neurony AI Sales Demo Showcase. Spec lives at
 `docs/superpowers/specs/2026-06-04-neurony-ai-showcase-design.md`. Read it first.
 
+For general Phoenix 1.8 / Ash / Ecto usage rules see `AGENTS.md` (Phoenix's
+auto-generated guidance, kept verbatim). This file (`CLAUDE.md`) is the
+project-specific overlay — load-bearing rules, architectural decisions, and
+testing policy.
+
 ## Load-bearing rules (do not violate)
 
 ### 1. `impl/` vs boundaries
