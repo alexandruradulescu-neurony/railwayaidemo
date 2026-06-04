@@ -1,11 +1,18 @@
-# Script for populating the database. You can run it as:
+# Script for populating the database. Run with:
 #
 #     mix run priv/repo/seeds.exs
 #
-# Inside the script, you can read and write to any of your
-# repositories directly:
-#
-#     Showcase.Repo.insert!(%Showcase.SomeSchema{})
-#
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+# Idempotent — re-running produces identical baseline state.
+
+require Logger
+
+Logger.info("Seeding OrderFlow demo data...")
+
+case Showcase.OrderFlow.Seed.seed() do
+  :ok ->
+    Logger.info("OrderFlow seeded. Visit http://localhost:4000/order-flow")
+
+  {:error, reason} ->
+    Logger.error("OrderFlow seed failed: #{inspect(reason)}")
+    System.halt(1)
+end
