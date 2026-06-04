@@ -10,6 +10,7 @@ defmodule Showcase.Application do
     children = [
       ShowcaseWeb.Telemetry,
       Showcase.Repo,
+      {Oban, Application.fetch_env!(:showcase, Oban)},
       {DNSCluster, query: Application.get_env(:showcase, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Showcase.PubSub},
       # Start a worker by calling: Showcase.Worker.start_link(arg)

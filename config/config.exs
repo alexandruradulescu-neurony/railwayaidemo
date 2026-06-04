@@ -60,6 +60,27 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Ash
+config :showcase,
+  ash_domains: [Showcase.Common]
+
+config :ash, :default_belongs_to_type, :integer
+
+# Oban
+config :showcase, Oban,
+  engine: Oban.Engines.Basic,
+  repo: Showcase.Repo,
+  queues: [
+    order_flow: 5,
+    recruit_flow: 5,
+    planogram: 5,
+    invoice_approval: 5
+  ],
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Cron, crontab: []}
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
