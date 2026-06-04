@@ -65,4 +65,25 @@ defmodule Showcase.Common.ResetTest do
       err -> err
     end
   end
+
+  describe "with OrderFlow.Seed" do
+    alias Showcase.OrderFlow.Schemas.{Client, Product, SyntheticMessage}
+    alias Showcase.OrderFlow.Seed
+
+    setup do
+      Seed.seed()
+      :ok
+    end
+
+    test "reset re-seeds OrderFlow from scratch" do
+      Repo.delete_all(SyntheticMessage)
+      assert Repo.aggregate(SyntheticMessage, :count) == 0
+
+      assert :ok = Reset.run([Seed])
+
+      assert Repo.aggregate(Client, :count) >= 3
+      assert Repo.aggregate(Product, :count) >= 5
+      assert Repo.aggregate(SyntheticMessage, :count) >= 4
+    end
+  end
 end

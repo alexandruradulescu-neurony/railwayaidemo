@@ -24,6 +24,8 @@ defmodule ShowcaseWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/order-flow", OrderFlow.InboxLive
+    live "/order-flow/orders/:id", OrderFlow.OrderDetailLive
   end
 
   scope "/admin", ShowcaseWeb do
