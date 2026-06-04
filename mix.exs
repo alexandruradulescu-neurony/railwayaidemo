@@ -40,6 +40,25 @@ defmodule Showcase.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      # Ash
+      {:ash, "~> 3.0"},
+      {:ash_postgres, "~> 2.0"},
+      {:ash_phoenix, "~> 2.0"},
+
+      # Background jobs
+      {:oban, "~> 2.18"},
+
+      # Anthropic SDK
+      {:anthropix, "~> 0.6"},
+
+      # QR codes (Planogram phone handoff — phase 5, but pinned now)
+      {:eqrcode, "~> 0.2"},
+
+      # Property-based testing (used in CascadeMatcher + ResilientJSONParser tests)
+      # Note: :only restriction removed — Ash transitively requires stream_data without env restriction
+      {:stream_data, "~> 1.0"},
+
+      # Phoenix scaffold (generated)
       {:phoenix, "~> 1.8.7"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
