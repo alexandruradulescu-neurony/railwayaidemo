@@ -60,6 +60,6 @@ defmodule Showcase.Common.AnthropicClient.MockTest do
       metadata: %{fingerprint: "free", scenario: "default"}
     }
 
-    assert {:ok, %Response{usage: %Usage{cost_estimate_cents: 0.0}}} = AnthropicClient.call(req)
+    assert {:ok, %Response{usage: %Usage{cost_estimate_cents: +0.0}}} = AnthropicClient.call(req)
   end
 end
