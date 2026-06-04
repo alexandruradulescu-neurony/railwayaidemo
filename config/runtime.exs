@@ -28,6 +28,12 @@ config :showcase, ShowcaseWeb.Endpoint,
 config :anthropix,
   api_key: System.get_env("ANTHROPIC_API_KEY") || ""
 
+# Admin basic auth credentials. Defaults are dev-only; production
+# deployments must override via ADMIN_USER / ADMIN_PASS env vars.
+config :showcase,
+  admin_user: System.get_env("ADMIN_USER") || "admin",
+  admin_pass: System.get_env("ADMIN_PASS") || "changeme"
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
