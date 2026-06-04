@@ -28,6 +28,8 @@ defmodule ShowcaseWeb.Router do
     live "/order-flow/orders/:id", OrderFlow.OrderDetailLive
     live "/invoice-approval", InvoiceApproval.QueueLive
     live "/invoice-approval/bundles/:id", InvoiceApproval.BundleDetailLive
+    live "/recruit-flow", RecruitFlow.KanbanLive
+    live "/recruit-flow/applications/:id", RecruitFlow.ApplicationDetailLive
   end
 
   scope "/admin", ShowcaseWeb do

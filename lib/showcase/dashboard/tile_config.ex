@@ -24,11 +24,11 @@ defmodule Showcase.Dashboard.TileConfig do
       id: :recruit_flow,
       title: "RecruitFlow",
       description:
-        "Phone-screen, score, and chase candidates through a complete recruitment funnel with a state-machine-driven pipeline.",
+        "Phone-screen, score, and chase candidates through a 5-state recruitment funnel with AI screens + CV cascade.",
       roi_hook: "Recruiters intervene only on the ambiguous middle — everything else moves automatically.",
-      status: :coming_soon,
-      path: nil,
-      seeder: nil
+      status: :live,
+      path: "/recruit-flow",
+      seeder: Showcase.RecruitFlow.Seed
     },
     %Tile{
       id: :planogram,
