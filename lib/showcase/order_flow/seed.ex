@@ -36,6 +36,11 @@ defmodule Showcase.OrderFlow.Seed do
   def name, do: "OrderFlow"
 
   @impl true
+  def description do
+    "Turn unstructured customer messages into structured orders, with the system getting smarter every time a human corrects it."
+  end
+
+  @impl true
   def tables do
     # children before parents (for TRUNCATE order)
     [
