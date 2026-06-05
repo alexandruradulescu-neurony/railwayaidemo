@@ -48,6 +48,10 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
   Output ONLY the JSON. No prose. No code fences.
   """
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @spec build(map(), binary(), keyword()) :: Request.t()
   def build(planogram, photo_bytes, opts \\ []) do
     scenario = Keyword.get(opts, :scenario, "compliant")

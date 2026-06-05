@@ -52,6 +52,10 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   No narration outside the JSON.
   """
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @spec process_bundle(DocumentBundle.t(), %{now: DateTime.t()}) ::
           {:ok, Verdict.t()} | {:error, term()}
   def process_bundle(%DocumentBundle{} = bundle, %{now: _now}) do

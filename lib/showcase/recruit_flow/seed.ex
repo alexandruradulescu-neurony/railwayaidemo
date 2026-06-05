@@ -30,9 +30,29 @@ defmodule Showcase.RecruitFlow.Seed do
       seed_applications(position)
     end)
     |> case do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, _} ->
+        seed_system_prompts()
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp seed_system_prompts do
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "recruit_flow",
+      "phone_screen",
+      Showcase.RecruitFlow.PhoneScreenPipeline.system_prompt(),
+      note: "Conducts a structured phone screen and returns transcript + eval."
+    )
+
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "recruit_flow",
+      "cv_match",
+      Showcase.RecruitFlow.Cascade.PdfContentStep.system_prompt(),
+      note: "Matches a CV PDF to known candidates by free-text content."
+    )
   end
 
   defp seed_position do

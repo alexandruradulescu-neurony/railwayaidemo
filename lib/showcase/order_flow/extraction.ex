@@ -28,6 +28,10 @@ defmodule Showcase.OrderFlow.Extraction do
   @type extracted_line :: %{description: String.t(), quantity: integer()}
   @type extracted :: %{client_hint: String.t() | nil, lines: list(extracted_line())}
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @spec extract(String.t(), keyword()) :: {:ok, extracted()} | {:error, term()}
   def extract(body, opts \\ []) when is_binary(body) do
     scenario = Keyword.fetch!(opts, :scenario)

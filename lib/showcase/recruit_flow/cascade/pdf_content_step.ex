@@ -10,6 +10,11 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
   @fingerprint "recruit_flow:cv_match:v1"
+  @system_prompt ~s|Extract the candidate's full name from the CV content. Respond with JSON: {"candidate_name": "...", "confidence": 0.0-1.0}.|
+
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
 
   @impl true
   def name, do: :pdf_content
@@ -19,7 +24,7 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
     req = %Request{
       model: Config.default_model(),
       messages: [%{role: "user", content: pdf}],
-      system: ~s|Extract the candidate's full name from the CV content. Respond with JSON: {"candidate_name": "...", "confidence": 0.0-1.0}.|,
+      system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: pdf}
     }
 

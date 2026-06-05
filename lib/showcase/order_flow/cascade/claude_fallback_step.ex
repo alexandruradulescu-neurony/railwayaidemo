@@ -22,6 +22,11 @@ defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStep do
   alias Showcase.OrderFlow.Schemas.Product
 
   @fingerprint "order_flow:claude_fallback:v1"
+  @system_prompt "You are a product matcher. Respond with JSON: {\"sku\": \"...\", \"confidence\": 0.0-1.0}."
+
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
 
   @impl true
   def name, do: :claude_fallback
@@ -31,8 +36,7 @@ defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStep do
     req = %Request{
       model: Config.default_model(),
       messages: [%{role: "user", content: input}],
-      system:
-        "You are a product matcher. Respond with JSON: {\"sku\": \"...\", \"confidence\": 0.0-1.0}.",
+      system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: input}
     }
 

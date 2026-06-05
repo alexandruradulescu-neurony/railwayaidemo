@@ -35,7 +35,18 @@ defmodule Showcase.Planogram.Seed do
       upsert_tasks(planogram)
     end)
 
+    seed_system_prompts()
+
     :ok
+  end
+
+  defp seed_system_prompts do
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "planogram",
+      "vision_audit",
+      Showcase.Planogram.Impl.VisionRequest.system_prompt(),
+      note: "Vision call: audits shelf photo against expected planogram rows."
+    )
   end
 
   defp clear_uploads do

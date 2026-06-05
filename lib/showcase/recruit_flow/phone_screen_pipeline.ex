@@ -32,6 +32,10 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
     }
   """
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @outcome_to_state %{
     "qualified" => "QUALIFIED",
     "not_qualified" => "REJECTED",
