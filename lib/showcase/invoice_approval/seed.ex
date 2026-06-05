@@ -35,9 +35,22 @@ defmodule Showcase.InvoiceApproval.Seed do
       seed_bundles()
     end)
     |> case do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, _} ->
+        seed_system_prompts()
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp seed_system_prompts do
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "invoice_approval",
+      "approval",
+      Showcase.InvoiceApproval.Pipeline.system_prompt(),
+      note: "3-way matches contract + delivery notes + invoice, returns verdict."
+    )
   end
 
   defp seed_clients_and_contracts do

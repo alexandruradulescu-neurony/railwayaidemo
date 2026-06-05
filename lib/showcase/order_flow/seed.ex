@@ -65,9 +65,29 @@ defmodule Showcase.OrderFlow.Seed do
       seed_messages()
     end)
     |> case do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, _} ->
+        seed_system_prompts()
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp seed_system_prompts do
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "order_flow",
+      "extraction",
+      Showcase.OrderFlow.Extraction.system_prompt(),
+      note: "Extracts client + line items from raw message text."
+    )
+
+    Showcase.Common.SystemPromptSeeder.upsert(
+      "order_flow",
+      "claude_fallback",
+      Showcase.OrderFlow.Cascade.ClaudeFallbackStep.system_prompt(),
+      note: "Last-resort product match when fuzzy + alias steps miss."
+    )
   end
 
   defp seed_clients do

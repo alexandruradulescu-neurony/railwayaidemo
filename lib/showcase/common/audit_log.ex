@@ -52,7 +52,7 @@ defmodule Showcase.Common.AuditLog do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :write do
       accept [:demo, :entity_type, :entity_id, :event, :payload, :actor]

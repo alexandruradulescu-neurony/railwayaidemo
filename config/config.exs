@@ -83,6 +83,12 @@ config :showcase, Oban,
 
 config :showcase, :anthropic_client_impl, Showcase.Common.AnthropicClient.Live
 
+# Default Claude model for text-only demos. Overridden at runtime by
+# ANTHROPIC_MODEL_DEFAULT (see config/runtime.exs). Planogram vision
+# stays pinned to Sonnet — see lib/showcase/planogram/impl/vision_request.ex.
+config :showcase,
+  anthropic_default_model: "claude-haiku-4-5-20251001"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

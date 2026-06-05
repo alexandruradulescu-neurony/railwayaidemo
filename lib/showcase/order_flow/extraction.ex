@@ -11,10 +11,10 @@ defmodule Showcase.OrderFlow.Extraction do
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
 
   @fingerprint "order_flow:extract:v1"
-  @model "claude-haiku-4-5-20251001"
   @system_prompt """
   You parse a customer order message into structured data.
 
@@ -28,12 +28,16 @@ defmodule Showcase.OrderFlow.Extraction do
   @type extracted_line :: %{description: String.t(), quantity: integer()}
   @type extracted :: %{client_hint: String.t() | nil, lines: list(extracted_line())}
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @spec extract(String.t(), keyword()) :: {:ok, extracted()} | {:error, term()}
   def extract(body, opts \\ []) when is_binary(body) do
     scenario = Keyword.fetch!(opts, :scenario)
 
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: body}],
       system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: scenario}

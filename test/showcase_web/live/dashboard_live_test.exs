@@ -32,7 +32,7 @@ defmodule ShowcaseWeb.DashboardLiveTest do
 
     # Sample one phrase from each — the full strings are too long for clean matches
     assert html =~ "unstructured customer messages"  # OrderFlow
-    assert html =~ "recruitment funnel"               # RecruitFlow
+    assert html =~ "5-state funnel"                   # RecruitFlow
     assert html =~ "Retail shelf compliance"          # Planogram
     assert html =~ "Three-way matching"               # Invoice
     assert html =~ "restaurant photos"                # Restaurant Compliance

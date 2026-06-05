@@ -17,11 +17,16 @@ defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStep do
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.OrderFlow.Schemas.Product
 
   @fingerprint "order_flow:claude_fallback:v1"
-  @model "claude-haiku-4-5-20251001"
+  @system_prompt "You are a product matcher. Respond with JSON: {\"sku\": \"...\", \"confidence\": 0.0-1.0}."
+
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
 
   @impl true
   def name, do: :claude_fallback
@@ -29,10 +34,9 @@ defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStep do
   @impl true
   def try_match(input, %{repo: repo}) when is_binary(input) do
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: input}],
-      system:
-        "You are a product matcher. Respond with JSON: {\"sku\": \"...\", \"confidence\": 0.0-1.0}.",
+      system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: input}
     }
 

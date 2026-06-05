@@ -13,12 +13,12 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.RecruitFlow.Schemas.Application
   alias Showcase.RecruitFlow.Transitions
 
   @fingerprint "recruit_flow:phone_screen:v1"
-  @model "claude-haiku-4-5-20251001"
   @system_prompt """
   You are simulating a phone screen. Generate a brief transcript (3-6 exchanges)
   and score the candidate.
@@ -32,6 +32,10 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
     }
   """
 
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @outcome_to_state %{
     "qualified" => "QUALIFIED",
     "not_qualified" => "REJECTED",
@@ -43,7 +47,7 @@ defmodule Showcase.RecruitFlow.PhoneScreenPipeline do
           {:ok, Application.t()} | {:error, term()}
   def run(%Application{} = app, %{now: _now, scenario: scenario}) do
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: "Run a phone screen."}],
       system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: scenario}

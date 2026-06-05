@@ -5,11 +5,16 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.RecruitFlow.Schemas.{Application, Candidate}
 
   @fingerprint "recruit_flow:cv_match:v1"
-  @model "claude-haiku-4-5-20251001"
+  @system_prompt ~s|Extract the candidate's full name from the CV content. Respond with JSON: {"candidate_name": "...", "confidence": 0.0-1.0}.|
+
+  @doc "The active system prompt text. Exposed for SystemPromptSeeder."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
 
   @impl true
   def name, do: :pdf_content
@@ -17,9 +22,9 @@ defmodule Showcase.RecruitFlow.Cascade.PdfContentStep do
   @impl true
   def try_match(%{pdf_text: pdf}, %{repo: repo}) when is_binary(pdf) and pdf != "" do
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: pdf}],
-      system: ~s|Extract the candidate's full name from the CV content. Respond with JSON: {"candidate_name": "...", "confidence": 0.0-1.0}.|,
+      system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: pdf}
     }
 

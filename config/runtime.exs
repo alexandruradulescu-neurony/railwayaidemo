@@ -28,6 +28,12 @@ config :showcase, ShowcaseWeb.Endpoint,
 config :anthropix,
   api_key: System.get_env("ANTHROPIC_API_KEY") || ""
 
+# Default Claude model for text-only demos. Vision (Planogram) is pinned
+# to Sonnet in lib/showcase/planogram/impl/vision_request.ex.
+config :showcase,
+  anthropic_default_model:
+    System.get_env("ANTHROPIC_MODEL_DEFAULT") || "claude-haiku-4-5-20251001"
+
 # Admin basic auth credentials. Defaults are dev-only; production
 # deployments must override via ADMIN_USER / ADMIN_PASS env vars.
 config :showcase,
