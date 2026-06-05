@@ -40,3 +40,6 @@ npm-debug.log
 /.env.local
 # Generated reset/seed artifacts
 /priv/seed_artifacts/
+
+# Mobile-handoff photo uploads (Planogram). Wiped on reset.
+/priv/static/uploads/
