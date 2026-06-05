@@ -24,15 +24,12 @@ defmodule ShowcaseWeb.DashboardLive do
             </span>
             <span class="text-sm font-medium text-zinc-700">AI Showcase</span>
           </a>
-          <div class="flex items-center gap-4">
-            <Layouts.theme_toggle />
-            <a
-              href="/admin/reset"
-              class="text-sm text-zinc-500 underline hover:text-zinc-700"
-            >
-              Admin
-            </a>
-          </div>
+          <a
+            href="/admin/reset"
+            class="text-sm text-zinc-500 underline hover:text-zinc-700"
+          >
+            Admin
+          </a>
         </div>
       </header>
 

@@ -9,23 +9,10 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
-      (() => {
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.removeAttribute("data-theme");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-          }
-        };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
-      })();
+      // Showcase pins to light theme — the demo pages use fixed Tailwind colors
+      // that don't respond to data-theme. A real dark-mode pass would migrate
+      // pages to daisyUI's semantic tokens (bg-base-100, text-base-content, ...).
+      document.documentElement.setAttribute("data-theme", "light");
     </script>
   </head>
   <body>
