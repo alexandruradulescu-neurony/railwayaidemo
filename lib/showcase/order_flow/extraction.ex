@@ -11,10 +11,10 @@ defmodule Showcase.OrderFlow.Extraction do
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
 
   @fingerprint "order_flow:extract:v1"
-  @model "claude-haiku-4-5-20251001"
   @system_prompt """
   You parse a customer order message into structured data.
 
@@ -33,7 +33,7 @@ defmodule Showcase.OrderFlow.Extraction do
     scenario = Keyword.fetch!(opts, :scenario)
 
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: body}],
       system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: scenario}

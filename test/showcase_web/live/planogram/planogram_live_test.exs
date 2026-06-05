@@ -104,7 +104,9 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
       view |> element("button", "Admin") |> render_click()
       rendered = render(view)
       assert rendered =~ "claude-sonnet-4-5"
-      assert rendered =~ "Active model"
+      assert rendered =~ "Vision model"
+      assert rendered =~ "Default text model"
+      assert rendered =~ Showcase.Common.Config.default_model()
     end
   end
 end

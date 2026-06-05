@@ -334,8 +334,12 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
       <h2 class="text-lg font-medium mb-3">Admin overview</h2>
       <dl class="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Active model</dt>
-          <dd class="font-mono">claude-sonnet-4-5</dd>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Vision model</dt>
+          <dd class="font-mono">claude-sonnet-4-5 (pinned)</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Default text model</dt>
+          <dd class="font-mono">{Showcase.Common.Config.default_model()}</dd>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-wide text-zinc-500">Oban queue</dt>

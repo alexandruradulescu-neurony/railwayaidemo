@@ -13,6 +13,7 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   alias Ecto.Multi
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Types.Request
+  alias Showcase.Common.Config
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.InvoiceApproval.Impl.ThresholdEvaluator
   alias Showcase.InvoiceApproval.Impl.Types.Discrepancy
@@ -20,7 +21,6 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   alias Showcase.Repo
 
   @fingerprint "invoice_approval:verdict:v1"
-  @model "claude-haiku-4-5-20251001"
   @system_prompt """
   You compare a contract, one or more delivery notes, and an invoice for a single
   shipment cycle. For every line item across the three documents, report
@@ -60,7 +60,7 @@ defmodule Showcase.InvoiceApproval.Pipeline do
     body = build_user_message(bundle)
 
     req = %Request{
-      model: @model,
+      model: Config.default_model(),
       messages: [%{role: "user", content: body}],
       system: @system_prompt,
       metadata: %{fingerprint: @fingerprint, scenario: bundle.scenario}
