@@ -36,9 +36,9 @@ defmodule Showcase.Dashboard.TileConfig do
       description:
         "Retail shelf compliance audits done in seconds via a single vision call returning score, per-row breakdown, and suggested fixes.",
       roi_hook: "Replaces an afternoon of manual audit work with ~3-5¢ per shelf photo.",
-      status: :coming_soon,
-      path: nil,
-      seeder: nil
+      status: :live,
+      path: "/planogram",
+      seeder: Showcase.Planogram.Seed
     },
     %Tile{
       id: :invoice_approval,

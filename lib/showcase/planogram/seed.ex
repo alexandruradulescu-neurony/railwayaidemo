@@ -28,12 +28,20 @@ defmodule Showcase.Planogram.Seed do
 
   @impl true
   def seed do
+    clear_uploads()
+
     Repo.transaction(fn ->
       planogram = upsert_planogram()
       upsert_tasks(planogram)
     end)
 
     :ok
+  end
+
+  defp clear_uploads do
+    upload_dir = "priv/static/uploads/planogram"
+    File.rm_rf!(upload_dir)
+    File.mkdir_p!(upload_dir)
   end
 
   defp upsert_planogram do

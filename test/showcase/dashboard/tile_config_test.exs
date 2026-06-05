@@ -28,7 +28,7 @@ defmodule Showcase.Dashboard.TileConfigTest do
       end)
     end
 
-    test "OrderFlow, Invoice Approval, and RecruitFlow are live" do
+    test "OrderFlow, Invoice Approval, RecruitFlow, and Planogram are live" do
       by_id = Enum.into(TileConfig.all(), %{}, &{&1.id, &1})
 
       assert by_id[:order_flow].status == :live
@@ -36,12 +36,15 @@ defmodule Showcase.Dashboard.TileConfigTest do
       assert by_id[:recruit_flow].status == :live
       assert by_id[:recruit_flow].path == "/recruit-flow"
       assert by_id[:recruit_flow].seeder == Showcase.RecruitFlow.Seed
+      assert by_id[:planogram].status == :live
+      assert by_id[:planogram].path == "/planogram"
+      assert by_id[:planogram].seeder == Showcase.Planogram.Seed
     end
 
-    test "Planogram and Restaurant Compliance remain coming_soon" do
+    test "Restaurant Compliance remains coming_soon" do
       by_id = Enum.into(TileConfig.all(), %{}, &{&1.id, &1})
 
-      Enum.each([:planogram, :restaurant_compliance], fn id ->
+      Enum.each([:restaurant_compliance], fn id ->
         assert by_id[id].status == :coming_soon
         assert by_id[id].path == nil
         assert by_id[id].seeder == nil
