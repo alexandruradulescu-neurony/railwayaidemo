@@ -102,4 +102,19 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Neurony brand palette (placeholder — indigo/violet range).
+   Replace with the official Neurony deck values once available.
+   Exposed via Tailwind 4 `@theme` so utilities like `bg-neurony-600`
+   and `text-neurony-700` resolve automatically.
+   ───────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-neurony-50:  oklch(0.97 0.02 270);
+  --color-neurony-100: oklch(0.93 0.04 270);
+  --color-neurony-500: oklch(0.55 0.20 270);
+  --color-neurony-600: oklch(0.48 0.22 270);
+  --color-neurony-700: oklch(0.40 0.20 270);
+  --color-neurony-900: oklch(0.20 0.12 270);
+}
+
 /* This file is for your main application CSS */

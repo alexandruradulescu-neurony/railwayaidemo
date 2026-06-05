@@ -24,7 +24,7 @@ defmodule Showcase.Dashboard.TileConfig do
       id: :recruit_flow,
       title: "RecruitFlow",
       description:
-        "Phone-screen, score, and chase candidates through a 5-state recruitment funnel with AI screens + CV cascade.",
+        "Phone-screen, score, and route candidates through a 5-state funnel — AI handles the volume.",
       roi_hook: "Recruiters intervene only on the ambiguous middle — everything else moves automatically.",
       status: :live,
       path: "/recruit-flow",
