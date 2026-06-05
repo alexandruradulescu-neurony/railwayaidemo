@@ -31,6 +31,7 @@ defmodule ShowcaseWeb.Router do
     live "/recruit-flow", RecruitFlow.KanbanLive
     live "/recruit-flow/applications/:id", RecruitFlow.ApplicationDetailLive
     live "/planogram", Planogram.PlanogramLive, :merchandiser
+    live "/planogram/:id", Planogram.TaskDetailLive, :show
     live "/planogram/mobile/:token", Planogram.MobileCaptureLive, :capture
   end
 
