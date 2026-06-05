@@ -30,6 +30,8 @@ defmodule ShowcaseWeb.Router do
     live "/invoice-approval/bundles/:id", InvoiceApproval.BundleDetailLive
     live "/recruit-flow", RecruitFlow.KanbanLive
     live "/recruit-flow/applications/:id", RecruitFlow.ApplicationDetailLive
+    live "/planogram", Planogram.PlanogramLive, :merchandiser
+    live "/planogram/mobile/:token", Planogram.MobileCaptureLive, :capture
   end
 
   scope "/admin", ShowcaseWeb do
