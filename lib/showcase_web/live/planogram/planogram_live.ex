@@ -31,6 +31,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
      |> assign(:page_title, "Planogram Manager")
      |> assign(:role, "merchandiser")
      |> assign(:active_qr_task_id, nil)
+     |> assign(:planograms, Planogram.list_planograms())
      |> load_tasks()}
   end
 
@@ -65,6 +66,20 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     {id, _} = Integer.parse(task_id)
     new_active = if socket.assigns.active_qr_task_id == id, do: nil, else: id
     {:noreply, assign(socket, active_qr_task_id: new_active)}
+  end
+
+  def handle_event("create_task", %{"task" => task_attrs}, socket) do
+    case Planogram.create_task(task_attrs) do
+      {:ok, _task} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Task created.")
+         |> assign(:planograms, Planogram.list_planograms())
+         |> load_tasks()}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Could not create task.")}
+    end
   end
 
   @impl true
@@ -114,7 +129,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           <% "merchandiser" -> %>
             <.render_merchandiser buckets={@buckets} active_qr_task_id={@active_qr_task_id} />
           <% "manager" -> %>
-            <.render_manager />
+            <.render_manager planograms={@planograms} />
           <% "admin" -> %>
             <.render_admin />
         <% end %>
@@ -260,24 +275,83 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   defp status_classes("failed"), do: "bg-rose-100 text-rose-700"
   defp status_classes(_), do: "bg-zinc-100"
 
+  attr :planograms, :list, required: true
+
   defp render_manager(assigns) do
     ~H"""
-    <section class="rounded border bg-white p-4">
-      <h2 class="text-lg font-medium mb-2">Author planograms</h2>
-      <p class="text-sm text-zinc-500">
-        Planogram authoring + task creation lands in Task 11.
-        (Roles already wired; this panel is a placeholder so the role switcher works.)
-      </p>
-    </section>
+    <div class="grid grid-cols-2 gap-6">
+      <section class="rounded border bg-white p-4">
+        <h2 class="text-lg font-medium mb-3">Existing planograms</h2>
+        <ul class="divide-y">
+          <li :for={pg <- @planograms} class="py-2">
+            <div class="font-medium">{pg.name}</div>
+            <div class="text-xs text-zinc-500">{pg.description}</div>
+          </li>
+        </ul>
+      </section>
+
+      <section class="rounded border bg-white p-4">
+        <h2 class="text-lg font-medium mb-3">Create task</h2>
+        <form phx-submit="create_task" class="space-y-3">
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Store</label>
+            <input name="task[store_name]" required class="w-full rounded border px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Planogram</label>
+            <select name="task[planogram_id]" class="w-full rounded border px-3 py-2">
+              <option :for={pg <- @planograms} value={pg.id}>{pg.name}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Due date</label>
+            <input name="task[due_date]" type="date" required class="w-full rounded border px-3 py-2" />
+            <p class="mt-1 text-xs text-zinc-400">Past dates allowed (demo overdue treatment).</p>
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Scenario</label>
+            <select name="task[scenario]" class="w-full rounded border px-3 py-2">
+              <option value="compliant">compliant</option>
+              <option value="minor_issues">minor_issues</option>
+              <option value="major_issues">major_issues</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Create task
+          </button>
+        </form>
+      </section>
+    </div>
     """
   end
 
   defp render_admin(assigns) do
     ~H"""
     <section class="rounded border bg-white p-4">
-      <h2 class="text-lg font-medium mb-2">Admin overview</h2>
-      <p class="text-sm text-zinc-500">
-        Audit log + model selection + cost overview lands in Task 11.
+      <h2 class="text-lg font-medium mb-3">Admin overview</h2>
+      <dl class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Active model</dt>
+          <dd class="font-mono">claude-sonnet-4-5</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Oban queue</dt>
+          <dd class="font-mono">:planogram (concurrency 5)</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Fingerprint</dt>
+          <dd class="font-mono">planogram_vision_v1</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-zinc-500">Scenarios</dt>
+          <dd class="font-mono">compliant / minor_issues / major_issues</dd>
+        </div>
+      </dl>
+      <p class="mt-4 text-xs text-zinc-500">
+        Reset all data and audit log via <a href="/admin/reset" class="underline">/admin/reset</a>.
       </p>
     </section>
     """

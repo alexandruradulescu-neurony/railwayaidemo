@@ -60,4 +60,51 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
       assert rendered =~ "/planogram/mobile/"
     end
   end
+
+  describe "manager view" do
+    test "lists existing planograms + create-task form", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/planogram")
+      view |> element("button", "Manager") |> render_click()
+      rendered = render(view)
+      assert rendered =~ "3-shelf snack display"
+      assert rendered =~ "Create task"
+    end
+
+    test "create_task inserts a new VerificationTask", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/planogram")
+      view |> element("button", "Manager") |> render_click()
+
+      before_count = Showcase.Repo.aggregate(Showcase.Planogram.VerificationTask, :count)
+
+      view
+      |> form("form[phx-submit='create_task']",
+        %{
+          "task" => %{
+            "store_name" => "New Test Store",
+            "due_date" => Date.to_iso8601(Date.utc_today()),
+            "planogram_id" => first_planogram_id(),
+            "scenario" => "compliant"
+          }
+        })
+      |> render_submit()
+
+      after_count = Showcase.Repo.aggregate(Showcase.Planogram.VerificationTask, :count)
+      assert after_count == before_count + 1
+    end
+
+    defp first_planogram_id do
+      [pg | _] = Showcase.Repo.all(Showcase.Planogram.Planogram)
+      pg.id
+    end
+  end
+
+  describe "admin view" do
+    test "shows model and prompt summary", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/planogram")
+      view |> element("button", "Admin") |> render_click()
+      rendered = render(view)
+      assert rendered =~ "claude-sonnet-4-5"
+      assert rendered =~ "Active model"
+    end
+  end
 end
