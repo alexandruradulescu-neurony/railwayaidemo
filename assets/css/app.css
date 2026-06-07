@@ -6,6 +6,10 @@
 @source "../js";
 @source "../../lib/showcase_web";
 
+/* Neurony brand tokens — source of truth lives in neurony-tokens.css.
+   Pulls in CSS variables AND the Google Fonts @import for Fira Sans + Montserrat. */
+@import "./neurony-tokens.css";
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
@@ -103,18 +107,31 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* ─────────────────────────────────────────────────────────────────────
-   Neurony brand palette (placeholder — indigo/violet range).
-   Replace with the official Neurony deck values once available.
-   Exposed via Tailwind 4 `@theme` so utilities like `bg-neurony-600`
-   and `text-neurony-700` resolve automatically.
+   Neurony brand — Tailwind 4 utilities backed by neurony-tokens.css.
+   Adds: bg-purple, bg-purple-soft, bg-ink, bg-ink-deep, bg-surface-lav,
+         bg-surface-lav-2, bg-line, bg-green, bg-amber, bg-red, bg-cyan, bg-teal
+         and their text-* / border-* counterparts, plus font-heading / font-body.
    ───────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-neurony-50:  oklch(0.97 0.02 270);
-  --color-neurony-100: oklch(0.93 0.04 270);
-  --color-neurony-500: oklch(0.55 0.20 270);
-  --color-neurony-600: oklch(0.48 0.22 270);
-  --color-neurony-700: oklch(0.40 0.20 270);
-  --color-neurony-900: oklch(0.20 0.12 270);
+  /* Brand */
+  --color-purple:        #8A79FB;
+  --color-purple-stroke: #9747FF;
+  --color-purple-soft:   #D062FF;
+  --color-ink:           #2E2B41;
+  --color-ink-deep:      #281A4C;
+  --color-body-on-dark:  #E6E7F3;
+  --color-line:          #D3D5EA;
+  --color-surface-lav:   #EEEEFF;
+  --color-surface-lav-2: #F4F5FA;
+  --color-cyan:          #63C1FF;
+  --color-teal:          #0FB4CA;
+  --color-green:         #19C332;
+  --color-amber:         #FEBC2E;
+  --color-red:           #CD0503;
+
+  /* Type families */
+  --font-heading: "Fira Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body:    "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* This file is for your main application CSS */
