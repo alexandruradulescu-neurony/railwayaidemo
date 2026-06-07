@@ -81,10 +81,12 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         case Planogram.save_shelf_photo(socket.assigns.task, bytes) do
           {:ok, updated} ->
             updated = Planogram.get_task!(updated.id)
+            # Auto-enqueue analysis so the AE doesn't need to click twice.
+            Planogram.enqueue_analysis(updated.id)
 
             {:noreply,
              socket
-             |> put_flash(:info, "Shelf photo uploaded.")
+             |> put_flash(:info, "Shelf photo uploaded — analysis running.")
              |> assign_task(updated)}
 
           {:error, _changeset} ->
@@ -204,23 +206,25 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         <button
           type="submit"
           disabled={@uploads.shelf.entries == []}
-          class="rounded bg-purple px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+          class="w-full rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Upload photo
+          Upload & analyze
         </button>
+        <p :if={@uploads.shelf.entries == []} class="text-xs text-zinc-500">
+          Pick a shelf photo to enable the analysis.
+        </p>
       </form>
     </section>
 
-    <div class="flex items-center gap-3">
+    <div :if={@task.photo_path} class="flex items-center gap-3">
       <button
         phx-click="run_analysis"
         class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
       >
-        Run analysis
+        Re-run analysis
       </button>
-      <span :if={!@task.photo_path} class="text-xs text-zinc-500">
-        No photo uploaded — the bundled <code class="font-mono">{@task.scenario}</code>
-        scenario will be used.
+      <span class="text-xs text-zinc-500">
+        Re-runs the AI comparison against the currently-uploaded shelf photo.
       </span>
     </div>
     """
