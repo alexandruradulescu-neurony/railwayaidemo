@@ -101,13 +101,39 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="grid grid-cols-2 gap-4 p-6 min-h-screen">
-      <section class="border rounded p-4">
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Dashboard
+          </a>
+        </div>
+      </header>
+
+      <div class="border-b border-line bg-white">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Neurony · OrderFlow
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-3xl text-ink tracking-tight">
+            Customer messages → structured orders
+          </h1>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            Real Claude pipeline against synthetic input. Generate an order, watch the cascade match products.
+          </p>
+        </div>
+      </div>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-2 gap-4 p-6">
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
         <header class="flex items-center justify-between mb-4">
-          <h1 class="text-xl font-semibold">OrderFlow</h1>
+          <h2 class="font-heading text-lg font-bold text-ink">Inbox</h2>
           <button
             type="button"
-            class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            class="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
             phx-click="generate_order"
           >
             Generate order
@@ -118,23 +144,23 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
           <li :for={msg <- @messages} class={[
             "text-sm border-l-2 pl-3",
             @active_message && @active_message.id == msg.id && "border-emerald-400 bg-emerald-50",
-            !(@active_message && @active_message.id == msg.id) && "border-zinc-200"
+            !(@active_message && @active_message.id == msg.id) && "border-line"
           ]}>
-            <p class="font-medium">{msg.client_hint || "(no client hint)"} · <span class="text-zinc-500">{msg.kind}</span></p>
-            <p class="text-zinc-700 mt-1">{msg.body}</p>
+            <p class="font-medium">{msg.client_hint || "(no client hint)"} · <span class="text-ink/60">{msg.kind}</span></p>
+            <p class="text-ink/80 mt-1">{msg.body}</p>
           </li>
         </ol>
       </section>
 
-      <section class="border rounded p-4">
-        <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Pipeline</h2>
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+        <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Pipeline</h2>
         <%= if @active_message do %>
-          <p class="text-sm text-zinc-700 mb-3">Processing: <span class="font-mono">{@active_message.scenario}</span></p>
+          <p class="text-sm text-ink/80 mb-3">Processing: <span class="font-mono">{@active_message.scenario}</span></p>
           <ShowcaseWeb.Components.PipelineStages.pipeline_stages stages={@active_stages} />
 
           <button
             type="button"
-            class="mt-4 text-xs text-zinc-500 underline"
+            class="mt-4 text-xs text-ink/60 underline"
             phx-click="toggle_cascade_detail"
           >
             {if @cascade_detail_open, do: "Hide", else: "Show"} cascade detail
@@ -142,9 +168,9 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
 
           <%= if @cascade_detail_open and @active_lines != [] do %>
             <div class="mt-3 space-y-2">
-              <div :for={line <- @active_lines} class="rounded border border-zinc-200 p-2 text-sm">
+              <div :for={line <- @active_lines} class="rounded-lg border border-line bg-surface-lav-2 p-3 text-sm">
                 <p class="font-mono">{line.description}</p>
-                <p class="text-xs text-zinc-500 mt-1">
+                <p class="text-xs text-ink/60 mt-1">
                   step: <span class="font-mono">{line.step}</span>
                   · conf: {if line.confidence, do: Float.round(line.confidence, 2), else: "—"}
                   · matched: {line.matched}
@@ -153,12 +179,12 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
             </div>
           <% end %>
         <% else %>
-          <p class="text-sm text-zinc-500">Click "Generate order" to start.</p>
+          <p class="text-sm text-ink/60">Click "Generate order" to start.</p>
         <% end %>
 
         <%= if @orders != [] do %>
           <div class="mt-6">
-            <h3 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Recent orders</h3>
+            <h3 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Recent orders</h3>
             <ol class="space-y-2">
               <li :for={order <- Enum.take(@orders, 5)} class="text-sm">
                 <a class="underline" href={"/order-flow/orders/#{order.id}"}>
@@ -169,6 +195,7 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
           </div>
         <% end %>
       </section>
+    </div>
     </div>
     """
   end

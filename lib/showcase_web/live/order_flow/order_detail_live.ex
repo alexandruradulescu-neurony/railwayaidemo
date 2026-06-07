@@ -129,17 +129,36 @@ defmodule ShowcaseWeb.OrderFlow.OrderDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="p-6 max-w-4xl mx-auto">
-      <a href="/order-flow" class="text-sm text-zinc-500 underline">&larr; Inbox</a>
-      <h1 class="text-2xl font-semibold mt-2">Order #{@order.id}</h1>
-      <p class="text-sm text-zinc-700 mt-1">
-        Client: <span class="font-medium">{@order.client && @order.client.name}</span>
-        · Status: <span class="font-mono">{@order.status}</span>
-        · {length(@order.lines)} line(s)
-      </p>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/order-flow" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Inbox
+          </a>
+        </div>
+      </header>
 
-      <table class="mt-6 w-full text-sm">
-        <thead class="text-left text-zinc-500 uppercase tracking-wide text-xs">
+      <div class="border-b border-line bg-white">
+        <div class="max-w-5xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Order · {@order.client && @order.client.name}
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-3xl text-ink tracking-tight">
+            Order #{@order.id}
+          </h1>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            Status <span class="font-mono">{@order.status}</span> · {length(@order.lines)} line(s)
+          </p>
+        </div>
+      </div>
+
+    <div class="max-w-5xl mx-auto p-6">
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+      <table class="w-full text-sm">
+        <thead class="text-left text-ink/60 uppercase tracking-wide text-xs">
           <tr>
             <th class="py-2">Raw description</th>
             <th class="py-2">Qty</th>
@@ -159,7 +178,7 @@ defmodule ShowcaseWeb.OrderFlow.OrderDetailLive do
             <td class="py-3">
               <form phx-change="correct_line">
                 <input type="hidden" name="line_id" value={line.id} />
-                <select name="product_id" class="rounded border border-zinc-300 px-2 py-1 text-xs">
+                <select name="product_id" class="rounded border border-line px-2 py-1 text-xs">
                   <option value="">Correct…</option>
                   <option :for={p <- @products} value={p.id} selected={line.product_id == p.id}>
                     {p.name} ({p.sku})
@@ -170,6 +189,8 @@ defmodule ShowcaseWeb.OrderFlow.OrderDetailLive do
           </tr>
         </tbody>
       </table>
+      </section>
+    </div>
     </div>
     """
   end

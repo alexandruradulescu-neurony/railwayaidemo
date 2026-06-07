@@ -20,26 +20,39 @@ defmodule ShowcaseWeb.InvoiceApproval.QueueLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
-        <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-semibold">Invoice Approval</h1>
-            <p class="text-sm text-zinc-500 mt-1">
-              3-way matching across contract, delivery note, and invoice.
-            </p>
-          </div>
-          <a href="/" class="text-sm text-zinc-500 underline">&larr; Dashboard</a>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Dashboard
+          </a>
         </div>
       </header>
 
+      <div class="border-b border-line bg-white">
+        <div class="max-w-6xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Neurony · Invoice Approval
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-3xl text-ink tracking-tight">
+            Three-way invoice matching
+          </h1>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            Contract, delivery note, and invoice reconciled by AI. Configurable tolerances decide who needs a human.
+          </p>
+        </div>
+      </div>
+
       <main class="max-w-6xl mx-auto px-6 py-10">
-        <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-3">Bundles</h2>
+        <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-3">Bundles</h2>
         <ul class="space-y-2">
-          <li :for={bundle <- @bundles} class="rounded border bg-white p-3 flex items-center justify-between">
+          <li :for={bundle <- @bundles} class="rounded-xl border border-line bg-white p-3 shadow-sm flex items-center justify-between">
             <div>
               <p class="font-medium text-sm">{bundle.client.name} · <span class="font-mono">{bundle.scenario}</span></p>
-              <p class="text-xs text-zinc-500 mt-1">{bundle.contract.name} · kind: {bundle.kind}</p>
+              <p class="text-xs text-ink/60 mt-1">{bundle.contract.name} · kind: {bundle.kind}</p>
             </div>
             <a
               href={"/invoice-approval/bundles/#{bundle.id}"}

@@ -157,56 +157,69 @@ defmodule ShowcaseWeb.InvoiceApproval.BundleDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
-        <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 class="text-xl font-semibold">Bundle #{@bundle.id}</h1>
-            <p class="text-sm text-zinc-500 mt-1">
-              {@bundle.client.name} · <span class="font-mono">{@bundle.scenario}</span>
-            </p>
-          </div>
-          <a href="/invoice-approval" class="text-sm text-zinc-500 underline">&larr; Queue</a>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/invoice-approval" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Queue
+          </a>
         </div>
       </header>
 
+      <div class="border-b border-line bg-white">
+        <div class="max-w-6xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Bundle · {@bundle.client.name}
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-3xl text-ink tracking-tight">
+            Bundle #{@bundle.id}
+          </h1>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            Scenario <span class="font-mono">{@bundle.scenario}</span>
+          </p>
+        </div>
+      </div>
+
       <main class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section class="lg:col-span-2 space-y-6">
-          <h2 class="text-sm uppercase tracking-wide text-zinc-500">Matching Matrix</h2>
+          <h2 class="text-sm uppercase tracking-wide text-ink/60">Matching Matrix</h2>
           <%= if @latest_verdict do %>
             <MatchingMatrix.matching_matrix rows={@latest_verdict.classified_matrix["rows"] || []} />
           <% else %>
-            <p class="text-sm text-zinc-500">Awaiting AI verdict… (refresh in a few seconds)</p>
+            <p class="text-sm text-ink/60">Awaiting AI verdict… (refresh in a few seconds)</p>
           <% end %>
         </section>
 
         <aside class="space-y-6">
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-3">Verdict</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-3">Verdict</h2>
             <%= if @latest_verdict do %>
               <p class="text-lg font-semibold">
                 <span class={outcome_badge(@latest_verdict.outcome)}>
                   {String.upcase(@latest_verdict.outcome)}
                 </span>
               </p>
-              <p class="mt-2 text-sm text-zinc-700">{@latest_verdict.reasoning}</p>
-              <p class="mt-2 text-xs text-zinc-500">
+              <p class="mt-2 text-sm text-ink/80">{@latest_verdict.reasoning}</p>
+              <p class="mt-2 text-xs text-ink/60">
                 source: <span class="font-mono">{@latest_verdict.source}</span>
               </p>
             <% else %>
-              <p class="text-sm text-zinc-500">Pending.</p>
+              <p class="text-sm text-ink/60">Pending.</p>
             <% end %>
           </div>
 
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-3">Thresholds</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-3">Thresholds</h2>
             <ThresholdSliders.threshold_sliders thresholds={@thresholds} />
           </div>
 
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-3">Override</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-3">Override</h2>
             <form phx-submit="override" class="space-y-2">
-              <select name="outcome" class="w-full rounded border-zinc-300 text-sm">
+              <select name="outcome" class="w-full rounded border-line text-sm">
                 <option value="approve">Approve</option>
                 <option value="reject">Reject</option>
                 <option value="needs_human">Needs Human</option>
@@ -215,12 +228,12 @@ defmodule ShowcaseWeb.InvoiceApproval.BundleDetailLive do
                 type="text"
                 name="reason"
                 placeholder="Reason for override"
-                class="w-full rounded border-zinc-300 text-sm"
+                class="w-full rounded border-line text-sm"
                 required
               />
               <button
                 type="submit"
-                class="rounded bg-zinc-800 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-900"
+                class="rounded bg-zinc-800 px-3 py-2 text-xs font-medium text-white hover:bg-ink"
               >
                 Override verdict
               </button>
@@ -242,5 +255,5 @@ defmodule ShowcaseWeb.InvoiceApproval.BundleDetailLive do
     do: "inline-block rounded-full bg-amber-100 px-3 py-1 text-amber-900 ring-1 ring-amber-300"
 
   defp outcome_badge(_),
-    do: "inline-block rounded-full bg-zinc-100 px-3 py-1"
+    do: "inline-block rounded-full bg-surface-lav px-3 py-1"
 end

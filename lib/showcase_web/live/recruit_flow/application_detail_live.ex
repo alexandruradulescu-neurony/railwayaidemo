@@ -52,44 +52,58 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
-        <div class="max-w-5xl mx-auto px-6 py-5">
-          <a href="/recruit-flow" class="text-sm text-zinc-500 underline">&larr; Board</a>
-          <h1 class="text-xl font-semibold mt-2">{@app.candidate.name}</h1>
-          <p class="text-sm text-zinc-500 mt-1">
-            {@app.position && @app.position.title} ·
-            <span class="font-mono">{@app.state}</span>
-          </p>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/recruit-flow" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Board
+          </a>
         </div>
       </header>
 
+      <div class="border-b border-line bg-white">
+        <div class="max-w-5xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Candidate · {@app.position && @app.position.title}
+          </p>
+          <div class="mt-2 flex items-baseline gap-3 flex-wrap">
+            <h1 class="font-heading font-bold text-3xl text-ink tracking-tight">
+              {@app.candidate.name}
+            </h1>
+            <span class="font-mono text-sm text-ink/60">{@app.state}</span>
+          </div>
+        </div>
+      </div>
+
       <main class="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section class="lg:col-span-2 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Transcript</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Transcript</h2>
             <%= if @app.transcript do %>
-              <pre class="whitespace-pre-wrap text-sm text-zinc-700">{@app.transcript}</pre>
+              <pre class="whitespace-pre-wrap text-sm text-ink/80">{@app.transcript}</pre>
             <% else %>
-              <p class="text-sm text-zinc-500">No transcript yet.</p>
+              <p class="text-sm text-ink/60">No transcript yet.</p>
             <% end %>
           </div>
 
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Eval</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Eval</h2>
             <%= if @app.eval not in [nil, %{}] do %>
               <p class="text-sm">outcome: <span class="font-mono">{@app.eval["outcome"]}</span></p>
               <p class="text-sm">score: <span class="font-mono">{@app.eval["score"]}</span></p>
-              <p class="text-sm mt-2 text-zinc-700">{@app.eval["reasoning"]}</p>
+              <p class="text-sm mt-2 text-ink/80">{@app.eval["reasoning"]}</p>
             <% else %>
-              <p class="text-sm text-zinc-500">No eval yet.</p>
+              <p class="text-sm text-ink/60">No eval yet.</p>
             <% end %>
           </div>
         </section>
 
         <aside class="space-y-4">
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Run AI screen</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Run AI screen</h2>
             <div class="flex flex-col gap-2">
               <button
                 :for={s <- @phone_scenarios}
@@ -103,16 +117,16 @@ defmodule ShowcaseWeb.RecruitFlow.ApplicationDetailLive do
             </div>
           </div>
 
-          <div class="rounded border bg-white p-4">
-            <h2 class="text-sm uppercase tracking-wide text-zinc-500 mb-2">Transition timeline</h2>
+          <div class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+            <h2 class="text-sm uppercase tracking-wide text-ink/60 mb-2">Transition timeline</h2>
             <%= if @audit == [] do %>
-              <p class="text-sm text-zinc-500">No transitions yet.</p>
+              <p class="text-sm text-ink/60">No transitions yet.</p>
             <% else %>
               <ol class="space-y-2">
-                <li :for={entry <- @audit} class="text-xs border-l-2 border-zinc-200 pl-2">
+                <li :for={entry <- @audit} class="text-xs border-l-2 border-line pl-2">
                   <p class="font-medium">{entry.event}</p>
-                  <p class="text-zinc-500">{entry.payload["from"]} → {entry.payload["to"]}</p>
-                  <p class="text-zinc-400">{entry.inserted_at}</p>
+                  <p class="text-ink/60">{entry.payload["from"]} → {entry.payload["to"]}</p>
+                  <p class="text-ink/50">{entry.inserted_at}</p>
                 </li>
               </ol>
             <% end %>

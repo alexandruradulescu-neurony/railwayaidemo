@@ -13,7 +13,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.ThresholdSliders do
     ~H"""
     <form phx-change="update_thresholds" class="space-y-4">
       <div>
-        <label class="block text-xs uppercase tracking-wide text-zinc-500">
+        <label class="block text-xs uppercase tracking-wide text-ink/60">
           Price tolerance: {(@thresholds["price_pct"] || 5.0)}%
         </label>
         <input
@@ -28,7 +28,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.ThresholdSliders do
       </div>
 
       <div>
-        <label class="block text-xs uppercase tracking-wide text-zinc-500">
+        <label class="block text-xs uppercase tracking-wide text-ink/60">
           Quantity tolerance: {(@thresholds["qty_pct"] || 2.0)}%
         </label>
         <input
@@ -43,7 +43,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.ThresholdSliders do
       </div>
 
       <div>
-        <label class="block text-xs uppercase tracking-wide text-zinc-500">
+        <label class="block text-xs uppercase tracking-wide text-ink/60">
           Date tolerance: {(@thresholds["date_days"] || 3)} days
         </label>
         <input

@@ -15,7 +15,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.MatchingMatrix do
     ~H"""
     <div class="overflow-x-auto">
       <table class="w-full text-sm border-collapse">
-        <thead class="bg-zinc-100 text-zinc-600 uppercase text-xs tracking-wide">
+        <thead class="bg-surface-lav text-ink/70 uppercase text-xs tracking-wide">
           <tr>
             <th class="py-2 px-3 text-left">Line</th>
             <th class="py-2 px-3 text-left">Contract</th>
@@ -51,7 +51,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.MatchingMatrix do
 
     ~H"""
     <%= if @map in [nil, %{}] do %>
-      <span class="text-zinc-400">—</span>
+      <span class="text-ink/50">—</span>
     <% else %>
       <ul class="font-mono text-xs space-y-0.5">
         <li :for={{k, v} <- @map}>{k}: {format_value(v)}</li>
@@ -84,5 +84,5 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.MatchingMatrix do
   defp severity_badge("red"),
     do: "inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900 ring-1 ring-red-300"
 
-  defp severity_badge(_), do: "inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs"
+  defp severity_badge(_), do: "inline-block rounded-full bg-surface-lav px-2 py-0.5 text-xs"
 end
