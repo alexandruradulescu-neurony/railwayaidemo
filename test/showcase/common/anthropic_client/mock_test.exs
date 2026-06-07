@@ -1,5 +1,8 @@
 defmodule Showcase.Common.AnthropicClient.MockTest do
-  use ExUnit.Case, async: true
+  # Mock is a process-global ETS table; this file resets it in setup which
+  # races with any other async test using the same Mock. Run sync. See
+  # REVIEW-FINAL.md HI-A.
+  use ExUnit.Case, async: false
 
   alias Showcase.Common.AnthropicClient
   alias Showcase.Common.AnthropicClient.Mock

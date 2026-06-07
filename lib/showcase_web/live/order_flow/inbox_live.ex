@@ -270,8 +270,14 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
   end
 
   def handle_event("send_to_erp", _, socket) do
+    # Guard against a nervous demo-day double-click. The button is hidden
+    # on `status == "sent_to_erp"` but a click can land in the window
+    # between handler-start and re-render. REVIEW-FINAL.md HI-B.
     case socket.assigns.active_order do
       nil ->
+        {:noreply, socket}
+
+      %{status: "sent_to_erp"} ->
         {:noreply, socket}
 
       order ->
