@@ -87,7 +87,7 @@ defmodule Showcase.InvoiceApproval.PipelineTest do
 
     {:ok, verdict} = Pipeline.process_bundle(bundle, ctx())
     assert verdict.outcome == "reject"
-    assert verdict.reasoning =~ "EXTRA-99"
+    assert verdict.reasoning =~ "EXTRA-LMP-LED"
   end
 
   test "process_bundle/2 returns error when AnthropicClient fails (no Mock registered)",

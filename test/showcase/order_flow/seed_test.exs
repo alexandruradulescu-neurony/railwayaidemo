@@ -40,7 +40,7 @@ defmodule Showcase.OrderFlow.SeedTest do
     assert Repo.aggregate(Client, :count) >= 3
     assert Repo.aggregate(Product, :count) >= 5
     assert Repo.aggregate(ProductAlias, :count) >= 1
-    assert Repo.aggregate(SyntheticMessage, :count) >= 4
+    assert Repo.aggregate(SyntheticMessage, :count) >= 3
   end
 
   test "seed/0 is idempotent — running twice produces the same state" do

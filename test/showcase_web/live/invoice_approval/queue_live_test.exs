@@ -14,15 +14,15 @@ defmodule ShowcaseWeb.InvoiceApproval.QueueLiveTest do
     {:ok, _view, html} = live(conn, "/invoice-approval")
 
     assert html =~ "Invoice Approval"
-    assert html =~ "Bundle"
+    assert html =~ "Receive an invoice"
   end
 
   test "shows seeded scenarios", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/invoice-approval")
 
-    assert html =~ "clean_match"
-    assert html =~ "price_drift"
-    assert html =~ "qty_mismatch"
-    assert html =~ "out_of_contract"
+    # Seeded bundle clients (Meesenburg Romanian feronerie demo set)
+    assert html =~ "Meesenburg Romania"
+    assert html =~ "Alexandru Erdei"
+    assert html =~ "Dragos Manolache"
   end
 end

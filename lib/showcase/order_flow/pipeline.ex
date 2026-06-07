@@ -37,20 +37,26 @@ defmodule Showcase.OrderFlow.Pipeline do
   def process_message(%SyntheticMessage{} = msg, %{now: now}) do
     topic = "order_flow:processing:#{msg.id}"
 
-    with {:ok, extracted} <- Extraction.extract(msg.body, scenario: msg.scenario),
-         # Fall back to the synthetic message's seeded client_hint when Claude
-         # can't infer one from the body (common for short / context-light
-         # messages like "200 hinges and 50 locks — same as last month").
-         effective_hint = extracted.client_hint || msg.client_hint,
-         _ =
-           broadcast(topic, :extracted, %{
-             client_hint: effective_hint,
-             line_count: length(extracted.lines)
-           }),
-         {:ok, client} <- resolve_client(effective_hint, topic) do
+    with {:ok, extracted} <- Extraction.extract_message(msg) do
+      effective_hint = extracted.client_hint || msg.client_hint
+
+      broadcast(topic, :extracted, %{
+        client_hint: effective_hint,
+        line_count: length(extracted.lines)
+      })
+
+      # Client resolution is now best-effort: a miss broadcasts
+      # :client_unresolved (UI marks the stage "needs review") but the
+      # pipeline still continues. Lines get matched against the catalog
+      # without a client scope; the order is saved with `client_id = nil`
+      # and status "needs_client" so the operator can pick a client by
+      # hand on the order detail page.
+      client = maybe_resolve_client(effective_hint, topic)
+      client_id = client && client.id
+
       matched_lines =
         Enum.map(extracted.lines, fn line ->
-          context = %{repo: Repo, now: now, client_id: client.id}
+          context = %{repo: Repo, now: now, client_id: client_id}
           outcome = CascadeMatcher.run(@cascade_steps, line.description, context)
 
           attrs = %{
@@ -76,8 +82,8 @@ defmodule Showcase.OrderFlow.Pipeline do
         |> Multi.insert(
           :order,
           Order.changeset(%Order{}, %{
-            client_id: client.id,
-            status: "pending_review",
+            client_id: client_id,
+            status: if(client_id, do: "pending_review", else: "needs_client"),
             synthetic_message_id: msg.id
           })
         )
@@ -94,20 +100,22 @@ defmodule Showcase.OrderFlow.Pipeline do
           {:error, reason}
       end
     else
-      {:needs_human, reason} -> {:error, {:client_unresolved, reason}}
       {:error, _} = err -> err
     end
   end
 
-  defp resolve_client(hint, topic) do
+  # Best-effort client resolution. Returns the Client struct on hit, or `nil`
+  # on miss (after broadcasting :client_unresolved so the UI can flag the
+  # stage as "needs review"). The pipeline keeps going either way.
+  defp maybe_resolve_client(hint, topic) do
     case ClientResolver.resolve(hint, Repo) do
       {:ok, client} ->
         broadcast(topic, :client_identified, %{client_id: client.id, name: client.name})
-        {:ok, client}
+        client
 
-      {:needs_human, reason} = err ->
+      {:needs_human, reason} ->
         broadcast(topic, :client_unresolved, %{reason: reason})
-        err
+        nil
     end
   end
 

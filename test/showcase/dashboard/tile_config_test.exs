@@ -9,7 +9,8 @@ defmodule Showcase.Dashboard.TileConfigTest do
       assert length(tiles) == 5
 
       ids = Enum.map(tiles, & &1.id)
-      assert ids == [:order_flow, :recruit_flow, :planogram, :invoice_approval, :restaurant_compliance]
+      # Demo-flow order: OrderFlow → Invoice → Planogram → Restaurant → RecruitFlow (coming soon, last).
+      assert ids == [:order_flow, :invoice_approval, :planogram, :restaurant_compliance, :recruit_flow]
     end
 
     test "every tile is a %Tile{} struct" do
@@ -28,20 +29,22 @@ defmodule Showcase.Dashboard.TileConfigTest do
       end)
     end
 
-    test "all five demos are live with path + seeder wired" do
+    test "four demos are live + RecruitFlow is coming_soon, all with path + seeder wired" do
       by_id = Enum.into(TileConfig.all(), %{}, &{&1.id, &1})
 
       assert by_id[:order_flow].status == :live
       assert by_id[:invoice_approval].status == :live
-      assert by_id[:recruit_flow].status == :live
-      assert by_id[:recruit_flow].path == "/recruit-flow"
-      assert by_id[:recruit_flow].seeder == Showcase.RecruitFlow.Seed
       assert by_id[:planogram].status == :live
       assert by_id[:planogram].path == "/planogram"
       assert by_id[:planogram].seeder == Showcase.Planogram.Seed
       assert by_id[:restaurant_compliance].status == :live
       assert by_id[:restaurant_compliance].path == "/restaurant-compliance"
       assert by_id[:restaurant_compliance].seeder == Showcase.RestaurantCompliance.Seed
+      # RecruitFlow deferred: tile renders as "Coming soon" and is not clickable
+      # from the dashboard, but path + seeder stay wired for the eventual flip.
+      assert by_id[:recruit_flow].status == :coming_soon
+      assert by_id[:recruit_flow].path == "/recruit-flow"
+      assert by_id[:recruit_flow].seeder == Showcase.RecruitFlow.Seed
     end
   end
 end

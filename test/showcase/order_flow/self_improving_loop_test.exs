@@ -13,7 +13,22 @@ defmodule Showcase.OrderFlow.SelfImprovingLoopTest do
     OrderFlow.register_mock_responses()
     OrderFlow.Seed.seed()
 
-    msg = Repo.get_by!(SyntheticMessage, scenario: "mixed_known_unknown")
+    # The "mixed_known_unknown" scenario is registered in MockPrompts (mocks
+    # available for tests) but no longer auto-seeded into the inbox (the
+    # demo inbox shows only the 3 Meesenburg scenarios). Insert it here as
+    # a test fixture so the self-improving-loop integration test still has
+    # a message whose cascade fires the Claude fallback step.
+    {:ok, msg} =
+      %SyntheticMessage{}
+      |> SyntheticMessage.changeset(%{
+        body: "Send 12 widgets and 3 of those gizmo things",
+        kind: "email",
+        scenario: "mixed_known_unknown",
+        client_hint: "Acme Inc",
+        composed: false
+      })
+      |> Repo.insert()
+
     {:ok, %{message: msg}}
   end
 

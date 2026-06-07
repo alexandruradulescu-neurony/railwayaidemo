@@ -10,6 +10,8 @@ defmodule Showcase.InvoiceApproval.Schemas.Contract do
     field :default_thresholds, :map, default: %{}
     field :valid_from, :date
     field :valid_until, :date
+    field :contract_number, :string
+    field :currency, :string, default: "RON"
 
     belongs_to :client, Client, foreign_key: :client_id
     has_many :document_bundles, DocumentBundle, foreign_key: :contract_id
@@ -19,7 +21,16 @@ defmodule Showcase.InvoiceApproval.Schemas.Contract do
 
   def changeset(contract, attrs) do
     contract
-    |> cast(attrs, [:client_id, :name, :body, :default_thresholds, :valid_from, :valid_until])
+    |> cast(attrs, [
+      :client_id,
+      :name,
+      :body,
+      :default_thresholds,
+      :valid_from,
+      :valid_until,
+      :contract_number,
+      :currency
+    ])
     |> validate_required([:client_id, :name])
   end
 end

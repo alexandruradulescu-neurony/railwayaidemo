@@ -17,6 +17,12 @@ defmodule Showcase.OrderFlow.Schemas.Order do
   def changeset(order, attrs) do
     order
     |> cast(attrs, [:client_id, :status, :synthetic_message_id])
-    |> validate_inclusion(:status, ["pending_review", "approved", "rejected"])
+    |> validate_inclusion(:status, [
+      "pending_review",
+      "needs_client",
+      "approved",
+      "rejected",
+      "sent_to_erp"
+    ])
   end
 end

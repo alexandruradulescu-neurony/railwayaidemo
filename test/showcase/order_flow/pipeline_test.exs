@@ -71,8 +71,10 @@ defmodule Showcase.OrderFlow.PipelineTest do
     assert_received {:order_flow, :order_created, %{order_id: _}}
   end
 
-  test "returns error when client_hint can't be resolved",
+  test "creates a needs_client order when client_hint can't be resolved",
        %{message: msg} do
+    Phoenix.PubSub.subscribe(Showcase.PubSub, "order_flow:processing:#{msg.id}")
+
     Mock.reset()
     Mock.register(
       "order_flow:extract:v1",
@@ -80,7 +82,15 @@ defmodule Showcase.OrderFlow.PipelineTest do
       text: ~s({"client_hint": "Unknown Co", "lines": [{"description": "widget", "quantity": 1}]})
     )
 
-    {:error, {:client_unresolved, _}} = Pipeline.process_message(msg, ctx())
+    # Pipeline no longer stops on client resolution failure — it creates the
+    # order with client_id=nil and status="needs_client" so the operator can
+    # pick a client by hand on the order detail page.
+    {:ok, order} = Pipeline.process_message(msg, ctx())
+
+    assert order.client_id == nil
+    assert order.status == "needs_client"
+    assert_received {:order_flow, :client_unresolved, _}
+    assert_received {:order_flow, :order_created, %{order_id: _}}
   end
 
   test "creates order line with nil product_id when no cascade step matches",

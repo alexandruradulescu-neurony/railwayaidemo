@@ -17,6 +17,7 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   alias Showcase.Common.ResilientJSONParser
   alias Showcase.InvoiceApproval.Impl.ThresholdEvaluator
   alias Showcase.InvoiceApproval.Impl.Types.Discrepancy
+  alias Showcase.InvoiceApproval.MockPrompts
   alias Showcase.InvoiceApproval.Schemas.{DocumentBundle, Verdict}
   alias Showcase.Repo
 
@@ -61,19 +62,10 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   def process_bundle(%DocumentBundle{} = bundle, %{now: _now}) do
     topic = "invoice_approval:processing:#{bundle.id}"
 
-    body = build_user_message(bundle)
-
-    req = %Request{
-      model: Config.default_model(),
-      messages: [%{role: "user", content: body}],
-      system: @system_prompt,
-      metadata: %{fingerprint: @fingerprint, scenario: bundle.scenario}
-    }
-
     broadcast(topic, :claude_called, %{scenario: bundle.scenario})
 
-    with {:ok, response} <- AnthropicClient.call(req),
-         {:ok, parsed, _completeness} <- ResilientJSONParser.parse(response.text),
+    with {:ok, response_text} <- response_text(bundle),
+         {:ok, parsed, _completeness} <- ResilientJSONParser.parse(response_text),
          _ = broadcast(topic, :claude_returned, %{summary: Map.get(parsed, "summary", "")}),
          raw_matrix <- normalize_matrix(Map.get(parsed, "raw_matrix", [])),
          thresholds <- normalize_thresholds(bundle.thresholds),
@@ -91,6 +83,9 @@ defmodule Showcase.InvoiceApproval.Pipeline do
           source: "ai",
           actor: nil
         }))
+        # Sync the bundle's status with the verdict so the inbox can show
+        # the right badge without re-querying verdicts every render.
+        |> Multi.update(:bundle, DocumentBundle.changeset(bundle, %{status: Atom.to_string(outcome)}))
 
       case Repo.transaction(multi) do
         {:ok, %{verdict: verdict}} ->
@@ -106,6 +101,29 @@ defmodule Showcase.InvoiceApproval.Pipeline do
   end
 
   # ----- helpers -----
+
+  # Branch like OrderFlow: seeded scenarios use scripted JSON (predictable
+  # demo, no API costs, no flake). Anything else (e.g. user-uploaded bundles
+  # in a future iteration) hits the configured AnthropicClient impl.
+  defp response_text(%DocumentBundle{scenario: scenario} = bundle) do
+    case MockPrompts.scripted_response_for(scenario) do
+      {:ok, text} ->
+        {:ok, text}
+
+      :not_found ->
+        req = %Request{
+          model: Config.default_model(),
+          messages: [%{role: "user", content: build_user_message(bundle)}],
+          system: @system_prompt,
+          metadata: %{fingerprint: @fingerprint, scenario: scenario}
+        }
+
+        case AnthropicClient.call(req) do
+          {:ok, response} -> {:ok, response.text}
+          {:error, _} = err -> err
+        end
+    end
+  end
 
   defp build_user_message(%DocumentBundle{} = bundle) do
     """
@@ -124,19 +142,45 @@ defmodule Showcase.InvoiceApproval.Pipeline do
         invoice: row["invoice"] || %{},
         discrepancies:
           (row["discrepancies"] || [])
-          |> Enum.map(fn d ->
-            %Discrepancy{
-              field: String.to_atom(d["field"]),
-              contract_value: d["contract_value"],
-              delivery_value: d["delivery_value"],
-              invoice_value: d["invoice_value"],
-              diff_value: d["diff_value"] * 1.0,
-              diff_basis: String.to_atom(d["diff_basis"])
-            }
-          end)
+          |> Enum.map(&normalize_discrepancy/1)
+          |> Enum.reject(&is_nil/1)
       }
     end)
   end
+
+  defp normalize_matrix(_), do: []
+
+  # Real Claude responses can have null diff_value, missing fields, or
+  # unexpected field/basis strings. Tolerate everything — drop the
+  # discrepancy entirely if `field` or `diff_basis` aren't usable.
+  defp normalize_discrepancy(d) when is_map(d) do
+    with field when is_binary(field) <- d["field"],
+         basis when is_binary(basis) <- d["diff_basis"] || "absolute" do
+      %Discrepancy{
+        field: safe_atom(field),
+        contract_value: d["contract_value"],
+        delivery_value: d["delivery_value"],
+        invoice_value: d["invoice_value"],
+        diff_value: as_float(d["diff_value"]),
+        diff_basis: safe_atom(basis)
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  defp normalize_discrepancy(_), do: nil
+
+  defp safe_atom(str) when is_binary(str) do
+    try do
+      String.to_existing_atom(str)
+    rescue
+      ArgumentError -> String.to_atom(str)
+    end
+  end
+
+  defp as_float(n) when is_number(n), do: n * 1.0
+  defp as_float(_), do: 0.0
 
   defp normalize_thresholds(thresholds) do
     %{

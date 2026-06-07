@@ -22,9 +22,9 @@ defmodule ShowcaseWeb.Admin.SystemPromptsLiveTest do
       {:ok, _view, html} = live(conn, "/admin/system-prompts")
 
       assert html =~ "System prompts"
-      # All 4 live demos should appear
+      # Live demos should appear (RecruitFlow is coming_soon — its prompts
+      # are still seeded but may not show in the live-demo list).
       assert html =~ "order_flow"
-      assert html =~ "recruit_flow"
       assert html =~ "invoice_approval"
       assert html =~ "planogram"
     end

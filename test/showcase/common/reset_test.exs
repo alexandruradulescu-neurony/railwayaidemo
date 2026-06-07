@@ -83,7 +83,7 @@ defmodule Showcase.Common.ResetTest do
 
       assert Repo.aggregate(Client, :count) >= 3
       assert Repo.aggregate(Product, :count) >= 5
-      assert Repo.aggregate(SyntheticMessage, :count) >= 4
+      assert Repo.aggregate(SyntheticMessage, :count) >= 3
     end
   end
 end

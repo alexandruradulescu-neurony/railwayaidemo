@@ -28,7 +28,7 @@ defmodule ShowcaseWeb.InvoiceApproval.BundleDetailLiveTest do
     {:ok, _view, html} = live(conn, "/invoice-approval/bundles/#{bundle.id}")
 
     assert html =~ "Bundle ##{bundle.id}"
-    assert html =~ "WGT-001"
+    assert html =~ "K1001-07-n03"
   end
 
   test "shows the latest verdict outcome", %{conn: conn, bundle: bundle} do

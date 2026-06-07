@@ -9,6 +9,8 @@ defmodule Showcase.Dashboard.TileConfig do
 
   alias Showcase.Dashboard.Tile
 
+  # Order matches the live-demo flow the AE walks through:
+  # OrderFlow → Invoice Approval → Planogram → Restaurant Compliance → RecruitFlow.
   @tiles [
     %Tile{
       id: :order_flow,
@@ -21,14 +23,14 @@ defmodule Showcase.Dashboard.TileConfig do
       seeder: Showcase.OrderFlow.Seed
     },
     %Tile{
-      id: :recruit_flow,
-      title: "RecruitFlow",
+      id: :invoice_approval,
+      title: "Invoice Approval",
       description:
-        "Phone-screen, score, and route candidates through a 5-state funnel — AI handles the volume.",
-      roi_hook: "Recruiters intervene only on the ambiguous middle — everything else moves automatically.",
+        "Three-way matching across contract, delivery note, and invoice. AI verdicts are explainable; configurable tolerances drive the routing.",
+      roi_hook: "AP clerks see only the ambiguous middle; configuration is the dial.",
       status: :live,
-      path: "/recruit-flow",
-      seeder: Showcase.RecruitFlow.Seed
+      path: "/invoice-approval",
+      seeder: Showcase.InvoiceApproval.Seed
     },
     %Tile{
       id: :planogram,
@@ -41,16 +43,6 @@ defmodule Showcase.Dashboard.TileConfig do
       seeder: Showcase.Planogram.Seed
     },
     %Tile{
-      id: :invoice_approval,
-      title: "Invoice Approval",
-      description:
-        "Three-way matching across contract, delivery note, and invoice. AI verdicts are explainable; configurable tolerances drive the routing.",
-      roi_hook: "AP clerks see only the ambiguous middle; configuration is the dial.",
-      status: :live,
-      path: "/invoice-approval",
-      seeder: Showcase.InvoiceApproval.Seed
-    },
-    %Tile{
       id: :restaurant_compliance,
       title: "Restaurant Compliance",
       description:
@@ -59,6 +51,16 @@ defmodule Showcase.Dashboard.TileConfig do
       status: :live,
       path: "/restaurant-compliance",
       seeder: Showcase.RestaurantCompliance.Seed
+    },
+    %Tile{
+      id: :recruit_flow,
+      title: "RecruitFlow",
+      description:
+        "Phone-screen, score, and route candidates through a 5-state funnel — AI handles the volume.",
+      roi_hook: "Recruiters intervene only on the ambiguous middle — everything else moves automatically.",
+      status: :coming_soon,
+      path: "/recruit-flow",
+      seeder: Showcase.RecruitFlow.Seed
     }
   ]
 

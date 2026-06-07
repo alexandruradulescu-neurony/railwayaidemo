@@ -22,6 +22,6 @@ defmodule Showcase.OrderFlow.Schemas.ProductAlias do
     |> cast(attrs, [:normalized_text, :product_id, :client_id, :confidence,
                     :last_used_at, :use_count, :source])
     |> validate_required([:normalized_text, :product_id, :last_used_at, :source])
-    |> validate_inclusion(:source, ["correction", "promotion", "seed"])
+    |> validate_inclusion(:source, ["correction", "promotion", "seed", "manual_catalog"])
   end
 end
