@@ -5,8 +5,19 @@ defmodule Showcase.Planogram.WorkerTest do
   alias Showcase.Planogram.{Planogram, VerificationTask, Worker, MockPrompts}
   alias Showcase.Repo
 
+  @test_photo "/uploads/planogram/test-shelf.png"
+
   setup do
     MockPrompts.register_all()
+
+    # Worker no longer falls back to bundled placeholders — tests must put a
+    # real (even if tiny) file on disk that read_photo can ingest.
+    File.mkdir_p!("priv/static/uploads/planogram")
+    File.write!(
+      "priv/static" <> @test_photo,
+      <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0>>
+    )
+
     :ok
   end
 
@@ -28,7 +39,7 @@ defmodule Showcase.Planogram.WorkerTest do
           scenario: "compliant",
           status: "pending",
           # Worker reads bundled photo by scenario when photo_path is nil
-          photo_path: nil
+          photo_path: @test_photo
         })
 
       assert :ok = perform_job(Worker, %{"task_id" => task.id})
@@ -60,7 +71,7 @@ defmodule Showcase.Planogram.WorkerTest do
         due_date: Date.utc_today(),
         mobile_token: "trunc-#{System.unique_integer([:positive])}",
         scenario: "compliant",
-        photo_path: nil
+        photo_path: @test_photo
       })
 
       assert :ok = perform_job(Worker, %{"task_id" => task.id, "max_tokens" => 200})

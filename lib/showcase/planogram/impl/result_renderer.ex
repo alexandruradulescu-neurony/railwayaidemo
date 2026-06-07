@@ -97,6 +97,7 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
       business_impact: as_string(issue["business_impact"], ""),
       row: issue["row"],
       horizontal_position: as_string(issue["horizontal_position"], "center"),
+      bbox: normalize_bbox(issue["bbox"]),
       badge: issue_badge(issue["type"])
     }
   end
@@ -107,11 +108,45 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
     %{
       text: as_string(p["text"], ""),
       row: p["row"],
-      horizontal_position: as_string(p["horizontal_position"], "center")
+      horizontal_position: as_string(p["horizontal_position"], "center"),
+      bbox: normalize_bbox(p["bbox"])
     }
   end
 
-  defp render_price(_), do: %{text: "", row: nil, horizontal_position: "center"}
+  defp render_price(_), do: %{text: "", row: nil, horizontal_position: "center", bbox: nil}
+
+  # Normalize a bbox map. Accepts string or atom keys, returns
+  # %{x: float, y: float, w: float, h: float} clamped to [0, 1], or nil
+  # if the input is missing/malformed.
+  defp normalize_bbox(b) when is_map(b) do
+    x = fetch_float(b, "x")
+    y = fetch_float(b, "y")
+    w = fetch_float(b, "w")
+    h = fetch_float(b, "h")
+
+    if Enum.all?([x, y, w, h], &is_number/1) do
+      %{
+        x: clamp01(x),
+        y: clamp01(y),
+        w: clamp01(w),
+        h: clamp01(h)
+      }
+    else
+      nil
+    end
+  end
+
+  defp normalize_bbox(_), do: nil
+
+  defp fetch_float(m, k) do
+    case Map.get(m, k) || Map.get(m, String.to_atom(k)) do
+      n when is_number(n) -> n / 1
+      _ -> nil
+    end
+  end
+
+  defp clamp01(n) when is_number(n), do: max(0.0, min(1.0, n / 1))
+  defp clamp01(_), do: 0.0
 
   defp render_photo_quality(pq) when is_map(pq),
     do: %{score: pq["score"], notes: pq["notes"]}

@@ -46,14 +46,16 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
         "description": "<text>",
         "row": <1-based row index from top, or null>,
         "horizontal_position": "left" | "center" | "right" | null,
+        "bbox": {"x": <0-1 float>, "y": <0-1 float>, "w": <0-1 float>, "h": <0-1 float>},
         "business_impact": "<text>"
       }
     ],
     "extracted_prices": [
       {
-        "text": "<raw price as visible, e.g. 'RON 15.99'>",
+        "text": "<raw price as visible, e.g. 'RON 15.99' or '-50% REDUCERE'>",
         "row": <1-based row index from top>,
-        "horizontal_position": "left" | "center" | "right"
+        "horizontal_position": "left" | "center" | "right",
+        "bbox": {"x": <0-1 float>, "y": <0-1 float>, "w": <0-1 float>, "h": <0-1 float>}
       }
     ],
     "suggestions": ["<actionable suggestion>"],
@@ -80,8 +82,19 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
     * "photo_quality" — image issues (blur, glare, occlusion) affecting confidence
     * "mismatch" — catch-all for other discrepancies
 
-  For each issue, populate `row` (1-based, counted from the top) and
-  `horizontal_position` to help the UI anchor a label on the shelf.
+  CRITICAL — BOUNDING BOXES:
+    * `bbox` coordinates are NORMALIZED to the actual shelf photo (image 2 in
+      two-image mode; the single image in one-image mode), with the origin at
+      the top-left corner. x and y are the top-left of the box, w and h are
+      width and height. All four values MUST be floats in [0.0, 1.0].
+    * Make boxes TIGHT around the actual region — e.g. for a missing product
+      the bbox is the empty shelf gap where the product belongs; for a price
+      tag the bbox wraps just the price label, not the surrounding product.
+    * NEVER emit the same `bbox` twice. If the same physical price tag is
+      listed once, list it ONCE. Don't duplicate prices that appear once on
+      the shelf.
+    * If you cannot determine a precise bbox, use null instead of guessing.
+      Approximate row + horizontal_position are still required as fallback.
 
   Output ONLY the JSON. No prose. No code fences.
   """

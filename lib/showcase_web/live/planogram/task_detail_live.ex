@@ -290,32 +290,60 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             (no photo — bundled scenario was used)
           </div>
 
-          <%!-- Overlay tags for issues + extracted prices --%>
-          <span
-            :for={iss <- @rendered.issues}
-            class={[
-              "absolute -translate-x-1/2 -translate-y-1/2",
-              "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-              "shadow-md whitespace-nowrap",
-              issue_badge_classes(iss.type)
-            ]}
-            style={overlay_style(iss.row, iss.horizontal_position, @max_row)}
-            title={iss.description}
-          >
-            {iss.badge}
-          </span>
+          <%!-- Issue overlays: bounding box + label, with row/position fallback --%>
+          <%= for iss <- @rendered.issues do %>
+            <%= if iss.bbox do %>
+              <div
+                class={[
+                  "absolute rounded-md border-2 border-dashed shadow-md",
+                  issue_box_classes(iss.type)
+                ]}
+                style={bbox_style(iss.bbox)}
+                title={iss.description}
+              >
+                <span class={[
+                  "absolute -top-3 left-1 inline-block",
+                  "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                  "shadow whitespace-nowrap",
+                  issue_badge_classes(iss.type)
+                ]}>
+                  {iss.badge}
+                </span>
+              </div>
+            <% else %>
+              <span
+                class={[
+                  "absolute -translate-x-1/2 -translate-y-1/2",
+                  "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                  "shadow-md whitespace-nowrap",
+                  issue_badge_classes(iss.type)
+                ]}
+                style={overlay_style(iss.row, iss.horizontal_position, @max_row)}
+                title={iss.description}
+              >
+                {iss.badge}
+              </span>
+            <% end %>
+          <% end %>
 
-          <span
-            :for={price <- @rendered.extracted_prices}
-            class={[
-              "absolute -translate-x-1/2 -translate-y-1/2",
-              "rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold",
-              "shadow-md whitespace-nowrap"
-            ]}
-            style={overlay_style(price.row, price.horizontal_position, @max_row)}
-          >
-            {price.text} ✓
-          </span>
+          <%!-- Price overlays: dedupe by (text, bbox) so the same tag isn't drawn twice --%>
+          <%= for price <- dedupe_prices(@rendered.extracted_prices) do %>
+            <%= if price.bbox do %>
+              <span
+                class="absolute rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold shadow-md whitespace-nowrap ring-2 ring-blue-300"
+                style={bbox_label_style(price.bbox)}
+              >
+                {price.text} ✓
+              </span>
+            <% else %>
+              <span
+                class="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold shadow-md whitespace-nowrap"
+                style={overlay_style(price.row, price.horizontal_position, @max_row)}
+              >
+                {price.text} ✓
+              </span>
+            <% end %>
+          <% end %>
         </div>
 
         <p class="text-sm text-ink/80 mt-4">{@rendered.executive_summary}</p>
@@ -444,6 +472,66 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   defp issue_badge_classes("photo_quality"), do: "bg-zinc-600 text-white"
   defp issue_badge_classes("mismatch"), do: "bg-rose-600 text-white"
   defp issue_badge_classes(_), do: "bg-zinc-600 text-white"
+
+  # Outlined-box classes that wrap the actual region on the shelf photo.
+  # Color matches the badge above.
+  defp issue_box_classes("missing_product"), do: "border-rose-500/90 bg-rose-500/10"
+  defp issue_box_classes("wrong_placement"), do: "border-amber-500/90 bg-amber-500/10"
+  defp issue_box_classes("wrong_qty"), do: "border-amber-500/90 bg-amber-500/10"
+  defp issue_box_classes("out_of_stock"), do: "border-orange-600/90 bg-orange-600/10"
+  defp issue_box_classes("unauthorized_item"), do: "border-rose-500/90 bg-rose-500/10"
+  defp issue_box_classes("photo_quality"), do: "border-zinc-600/90 bg-zinc-600/10"
+  defp issue_box_classes("mismatch"), do: "border-rose-500/90 bg-rose-500/10"
+  defp issue_box_classes(_), do: "border-zinc-600/90 bg-zinc-600/10"
+
+  # Bounding-box positioning — converts a normalized %{x, y, w, h} (0-1
+  # floats) to inline CSS percentages over the relatively-positioned image.
+  defp bbox_style(%{x: x, y: y, w: w, h: h}) do
+    "top: #{pct(y)}%; left: #{pct(x)}%; width: #{pct(w)}%; height: #{pct(h)}%;"
+  end
+
+  defp bbox_style(_), do: ""
+
+  # For prices: anchor the badge to the top-left corner of the bbox, no
+  # inflated rectangle — keeps the price tag visible without obscuring it.
+  defp bbox_label_style(%{x: x, y: y}) do
+    "top: #{pct(y)}%; left: #{pct(x)}%;"
+  end
+
+  defp bbox_label_style(_), do: ""
+
+  defp pct(n) when is_number(n), do: Float.round(n * 100, 2)
+  defp pct(_), do: 0
+
+  # Drop duplicate prices: if Claude returned the same text + roughly-the-same
+  # bbox twice, keep only one. Without bbox we fall back to text-only uniqueness.
+  defp dedupe_prices(prices) when is_list(prices) do
+    prices
+    |> Enum.reduce({[], MapSet.new()}, fn p, {acc, seen} ->
+      key = price_key(p)
+
+      if MapSet.member?(seen, key) do
+        {acc, seen}
+      else
+        {[p | acc], MapSet.put(seen, key)}
+      end
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  defp dedupe_prices(_), do: []
+
+  defp price_key(%{text: text, bbox: %{x: x, y: y}}) do
+    # Round to 2 decimals so near-identical bboxes from the model dedupe.
+    {String.trim(text || ""), Float.round(x, 2), Float.round(y, 2)}
+  end
+
+  defp price_key(%{text: text, row: row, horizontal_position: hp}) do
+    {String.trim(text || ""), row, hp}
+  end
+
+  defp price_key(_), do: :unknown
 
   # Severity badge classes — literal strings.
   defp severity_badge_classes("rose"), do: "bg-rose-100 text-rose-700"
