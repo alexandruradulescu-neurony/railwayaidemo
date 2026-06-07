@@ -15,28 +15,30 @@ defmodule ShowcaseWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
         <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <a href="/" class="flex items-center gap-3">
-            <span class="rounded bg-neurony-600 px-2 py-1 text-xs font-semibold text-white tracking-wider">
-              NEURONY
-            </span>
-            <span class="text-sm font-medium text-zinc-700">AI Showcase</span>
+          <a href="/" class="flex items-center gap-3 text-ink">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
           </a>
           <a
             href="/admin/reset"
-            class="text-sm text-zinc-500 underline hover:text-zinc-700"
+            class="text-sm text-ink/60 hover:text-purple transition-colors"
           >
             Admin
           </a>
         </div>
       </header>
 
-      <main class="max-w-6xl mx-auto px-6 py-10">
+      <main class="max-w-6xl mx-auto px-6 py-12">
         <div class="mb-10">
-          <h1 class="text-4xl font-semibold tracking-tight text-zinc-900">AI in production</h1>
-          <p class="mt-3 text-base text-zinc-600 max-w-2xl">
+          <p class="font-body font-bold text-sm uppercase tracking-wider text-purple">
+            Neurony · AI Showcase
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-5xl text-ink tracking-tight">
+            AI in production
+          </h1>
+          <p class="mt-3 font-body text-lg text-ink/70 max-w-2xl">
             Five working demos showing how Neurony bakes AI into real business
             workflows. Each one runs a real Claude pipeline against synthetic
             input — the engineering is the same as production code.
