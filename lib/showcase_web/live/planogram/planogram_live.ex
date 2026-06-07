@@ -213,10 +213,10 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
       </div>
 
       <main class="max-w-7xl mx-auto px-6 py-6">
-        <div :if={@flash["info"]} class="mb-4 rounded border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <div :if={@flash["info"]} class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm px-4 py-2 text-sm text-emerald-800">
           {@flash["info"]}
         </div>
-        <div :if={@flash["error"]} class="mb-4 rounded border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+        <div :if={@flash["error"]} class="mb-4 rounded-2xl border border-rose-200 bg-rose-50 shadow-sm px-4 py-2 text-sm text-rose-800">
           {@flash["error"]}
         </div>
 
@@ -290,15 +290,15 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
 
   defp task_bucket(assigns) do
     ~H"""
-    <section :if={@tasks != []} class="rounded border bg-white">
+    <section :if={@tasks != []} class="rounded-2xl border border-line bg-white shadow-sm overflow-hidden">
       <header class={[
-        "border-b px-4 py-2 text-xs uppercase tracking-wide",
+        "border-b border-line px-5 py-3 text-xs uppercase tracking-wider font-semibold",
         "text-#{@tone}-700 bg-#{@tone}-50"
       ]}>
         {@label} ({length(@tasks)})
       </header>
-      <ul class="divide-y">
-        <li :for={task <- @tasks} class="p-4">
+      <ul class="divide-y divide-line">
+        <li :for={task <- @tasks} class="p-5">
           <.task_row task={task} active_qr_task_id={@active_qr_task_id} />
         </li>
       </ul>
@@ -341,7 +341,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           phx-click="force_truncation"
           phx-value-task_id={@task.id}
           title="Cap max_tokens=200 to demo the resilient parser"
-          class="rounded border px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
+          class="rounded-lg border border-line px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
         >
           Force truncation
         </button>
@@ -349,7 +349,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           type="button"
           phx-click="toggle_qr"
           phx-value-task_id={@task.id}
-          class="rounded border px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
+          class="rounded-lg border border-line px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
         >
           {if @active_qr_task_id == @task.id, do: "Hide QR", else: "Open on phone"}
         </button>
@@ -394,7 +394,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     ~H"""
     <div class="space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section class="rounded border bg-white p-4">
+        <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
           <h2 class="text-lg font-medium mb-3">Existing planograms</h2>
           <ul :if={@planograms != []} class="divide-y">
             <li :for={pg <- @planograms} class="py-2 flex gap-3 items-start">
@@ -402,7 +402,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
                 :if={pg.reference_image_path}
                 src={pg.reference_image_path}
                 alt={pg.name}
-                class="w-12 h-12 object-cover rounded border bg-surface-lav-2 flex-shrink-0"
+                class="w-12 h-12 object-cover rounded-lg border border-line bg-surface-lav-2 flex-shrink-0"
               />
               <div class="flex-1 min-w-0">
                 <div class="font-medium truncate">{pg.name}</div>
@@ -424,7 +424,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           </p>
         </section>
 
-        <section class="rounded border bg-white p-4">
+        <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
           <h2 class="text-lg font-medium mb-3">Add planogram</h2>
           <form
             phx-submit="create_planogram"
@@ -433,14 +433,14 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           >
             <div>
               <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Name</label>
-              <input name="planogram[name]" required class="w-full rounded border px-3 py-2" />
+              <input name="planogram[name]" required class="w-full rounded-lg border border-line px-3 py-2" />
             </div>
             <div>
               <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Description</label>
               <textarea
                 name="planogram[description]"
                 rows="2"
-                class="w-full rounded border px-3 py-2"
+                class="w-full rounded-lg border border-line px-3 py-2"
               ></textarea>
             </div>
             <div>
@@ -476,7 +476,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
         </section>
       </div>
 
-      <section class="rounded border bg-white p-4">
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
         <h2 class="text-lg font-medium mb-3">Create task</h2>
         <p :if={@planograms == []} class="text-sm text-rose-700 mb-3">
           Add a planogram first.
@@ -487,13 +487,13 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             <input
               name="task[store_name]"
               required
-              class="w-full rounded border px-3 py-2"
+              class="w-full rounded-lg border border-line px-3 py-2"
               placeholder="e.g. Bucharest Mall"
             />
           </div>
           <div>
             <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Planogram</label>
-            <select name="task[planogram_id]" required class="w-full rounded border px-3 py-2">
+            <select name="task[planogram_id]" required class="w-full rounded-lg border border-line px-3 py-2">
               <option :for={pg <- @planograms} value={pg.id}>{pg.name}</option>
             </select>
           </div>
@@ -503,7 +503,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
               name="task[due_date]"
               type="date"
               required
-              class="w-full rounded border px-3 py-2"
+              class="w-full rounded-lg border border-line px-3 py-2"
             />
           </div>
           <div class="md:col-span-3">
@@ -517,7 +517,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
         </form>
       </section>
 
-      <section class="rounded border bg-white p-4">
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
         <h2 class="text-lg font-medium mb-3">All tasks ({length(@all_tasks)})</h2>
         <p :if={@all_tasks == []} class="text-sm text-ink/60">
           No tasks yet — create one above.
@@ -573,7 +573,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
 
   defp render_admin(assigns) do
     ~H"""
-    <section class="rounded border bg-white p-4">
+    <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
       <h2 class="text-lg font-medium mb-3">Admin overview</h2>
       <dl class="grid grid-cols-2 gap-4 text-sm">
         <div>

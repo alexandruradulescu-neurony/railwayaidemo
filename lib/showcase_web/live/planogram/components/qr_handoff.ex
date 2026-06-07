@@ -18,7 +18,7 @@ defmodule ShowcaseWeb.Planogram.Components.QRHandoff do
     assigns = assign(assigns, :svg, svg)
 
     ~H"""
-    <div class="inline-block rounded border bg-white p-3">
+    <div class="inline-block rounded-xl border border-line bg-white p-3 shadow-sm">
       <div class="mb-2 text-xs uppercase tracking-wide text-ink/60">
         Open on phone
       </div>

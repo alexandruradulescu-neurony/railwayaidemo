@@ -54,7 +54,7 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
   def render(%{error: :not_found} = assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center p-6 bg-surface-lav-2">
-      <div class="rounded border bg-white p-6 max-w-md text-center">
+      <div class="rounded-2xl border border-line bg-white p-6 shadow-sm max-w-md text-center">
         <h1 class="text-lg font-semibold mb-2">Link is no longer valid</h1>
         <p class="text-sm text-ink/70">
           The mobile-capture link could not be matched to a verification task.
@@ -67,7 +67,7 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
   def render(%{error: :already_processed} = assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center p-6 bg-surface-lav-2">
-      <div class="rounded border bg-white p-6 max-w-md text-center">
+      <div class="rounded-2xl border border-line bg-white p-6 shadow-sm max-w-md text-center">
         <h1 class="text-lg font-semibold mb-2">Already done</h1>
         <p class="text-sm text-ink/70">
           This audit has already been processed. Switch back to the desktop view.

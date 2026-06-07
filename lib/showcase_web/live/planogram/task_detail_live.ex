@@ -155,12 +155,12 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             <.pending_panel task={@task} uploads={@uploads} />
 
           <% "analyzing" -> %>
-            <div class="rounded border bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <div class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
               Calling Claude vision API…
             </div>
 
           <% "failed" -> %>
-            <div class="rounded border bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
               Analysis failed: <%= @task.error_reason %>
             </div>
 
@@ -177,27 +177,27 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
   defp pending_panel(assigns) do
     ~H"""
-    <section class="rounded border bg-white p-5 space-y-4">
+    <section class="rounded-2xl border border-line bg-white p-6 shadow-sm space-y-4">
       <h2 class="text-lg font-medium">Reference planogram</h2>
       <img
         :if={@task.planogram.reference_image_path}
         src={@task.planogram.reference_image_path}
         alt={@task.planogram.name}
-        class="w-full max-h-72 object-contain rounded border bg-surface-lav-2"
+        class="w-full max-h-72 object-contain rounded-lg border border-line bg-surface-lav-2"
       />
       <p class="text-xs text-ink/60">{@task.planogram.description}</p>
     </section>
 
-    <section :if={@task.photo_path} class="rounded border bg-white p-5 space-y-3">
+    <section :if={@task.photo_path} class="rounded-2xl border border-line bg-white p-6 shadow-sm space-y-3">
       <h2 class="text-lg font-medium">Shelf photo</h2>
       <img
         src={@task.photo_path}
         alt="Captured shelf"
-        class="w-full max-h-72 object-contain rounded border bg-surface-lav-2"
+        class="w-full max-h-72 object-contain rounded-lg border border-line bg-surface-lav-2"
       />
     </section>
 
-    <section :if={!@task.photo_path} class="rounded border bg-white p-5 space-y-3">
+    <section :if={!@task.photo_path} class="rounded-2xl border border-line bg-white p-6 shadow-sm space-y-3">
       <h2 class="text-lg font-medium">Upload shelf photo</h2>
       <p class="text-sm text-ink/60">
         Pick a photo from your computer, or use the
@@ -268,13 +268,13 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
     assigns = assign(assigns, :max_row, max_row)
 
     ~H"""
-    <div :if={@rendered.partial?} class="rounded border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+    <div :if={@rendered.partial?} class="rounded-2xl border border-amber-200 bg-amber-50 shadow-sm px-4 py-2 text-xs text-amber-800">
       The AI response was truncated. Showing salvaged fields via ResilientJSONParser.
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <%!-- Left/main column: shelf photo with overlay tags --%>
-      <section class="rounded border bg-white p-5 lg:col-span-2">
+      <section class="rounded-2xl border border-line bg-white p-6 shadow-sm lg:col-span-2">
         <h2 class="text-lg font-medium mb-3">Shelf compliance</h2>
         <div class="relative rounded overflow-hidden bg-surface-lav">
           <img
@@ -323,14 +323,14 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
       <%!-- Right column: stats sidebar --%>
       <section class="space-y-4">
-        <div class="rounded border bg-white p-5 text-center">
+        <div class="rounded-2xl border border-line bg-white p-6 shadow-sm text-center">
           <div class="text-xs uppercase tracking-wide text-ink/60 mb-2">
             Compliance Score
           </div>
           <.compliance_gauge pct={@rendered.gauge_pct} />
         </div>
 
-        <div class="rounded border bg-white p-4 flex items-center gap-3">
+        <div class="rounded-2xl border border-line bg-white p-6 shadow-sm flex items-center gap-3">
           <span class="rounded-full bg-rose-100 text-rose-600 p-2">
             <.icon name="hero-x-circle" class="size-5" />
           </span>
@@ -340,7 +340,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           </div>
         </div>
 
-        <div class="rounded border bg-white p-4 flex items-center gap-3">
+        <div class="rounded-2xl border border-line bg-white p-6 shadow-sm flex items-center gap-3">
           <span class="rounded-full bg-blue-100 text-blue-600 p-2">
             <.icon name="hero-currency-dollar" class="size-5" />
           </span>
@@ -350,7 +350,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           </div>
         </div>
 
-        <div :if={@rendered.out_of_stock_count > 0} class="rounded border bg-white p-4 flex items-center gap-3">
+        <div :if={@rendered.out_of_stock_count > 0} class="rounded-2xl border border-line bg-white p-6 shadow-sm flex items-center gap-3">
           <span class="rounded-full bg-amber-100 text-amber-600 p-2">
             <.icon name="hero-exclamation-triangle" class="size-5" />
           </span>
@@ -360,7 +360,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           </div>
         </div>
 
-        <div class="rounded border bg-emerald-50 border-emerald-200 px-4 py-3 flex items-center gap-2 text-sm text-emerald-800">
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 border-emerald-200 px-4 py-3 flex items-center gap-2 text-sm text-emerald-800">
           <.icon name="hero-check-circle" class="size-5" />
           <span class="font-medium">AI Analysis: Complete</span>
         </div>
@@ -374,12 +374,12 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       </section>
     </div>
 
-    <section :if={@rendered.rows != []} class="rounded border bg-white p-5">
+    <section :if={@rendered.rows != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
       <h2 class="text-lg font-medium mb-3">Per-row breakdown</h2>
       <.per_row_table rows={@rendered.rows} />
     </section>
 
-    <section :if={@rendered.issues != []} class="rounded border bg-white p-5">
+    <section :if={@rendered.issues != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
       <h2 class="text-lg font-medium mb-3">Issues ({length(@rendered.issues)})</h2>
       <ul class="space-y-3">
         <li :for={iss <- @rendered.issues} class="flex gap-3 items-start">
@@ -398,7 +398,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       </ul>
     </section>
 
-    <section :if={@rendered.suggestions != []} class="rounded border bg-white p-5">
+    <section :if={@rendered.suggestions != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
       <h2 class="text-lg font-medium mb-3">Suggested actions</h2>
       <ul class="list-disc list-inside text-sm text-ink/80 space-y-1">
         <li :for={s <- @rendered.suggestions}>{s}</li>
