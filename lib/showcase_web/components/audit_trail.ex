@@ -6,9 +6,9 @@ defmodule ShowcaseWeb.Components.AuditTrail do
   def audit_trail(assigns) do
     ~H"""
     <ol class="space-y-2">
-      <li :for={entry <- @entries} class="text-sm border-l-2 border-zinc-200 pl-3">
-        <p class="font-medium"><%= entry.event %></p>
-        <p class="text-xs text-zinc-500"><%= entry.inserted_at %></p>
+      <li :for={entry <- @entries} class="text-sm border-l-2 border-line pl-3">
+        <p class="font-body font-medium text-ink">{entry.event}</p>
+        <p class="font-body text-xs text-ink/50">{entry.inserted_at}</p>
       </li>
     </ol>
     """
