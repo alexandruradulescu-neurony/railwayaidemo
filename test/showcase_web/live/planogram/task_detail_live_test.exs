@@ -24,23 +24,23 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   end
 
   describe "complete task" do
-    test "renders compliance gauge, per-row, issues, suggestions, cost badge", %{conn: conn} do
+    test "renders compliance gauge, per-row, suggestions, cost badge", %{conn: conn} do
       task = a_task("compliant") |> run_to_completion()
 
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
       assert html =~ "96%"                          # gauge
       assert html =~ "Top shelf"                    # per-row
-      assert html =~ "Shelf matches planogram"      # exec summary
+      assert html =~ "matches"                      # exec summary (model-agnostic wording)
       assert html =~ "no action needed"             # suggestion
       assert html =~ "tok"                          # CostBadge
       assert html =~ "Raw JSON"                     # JSONInspector
     end
 
-    test "major_issues result renders high-severity issue rows", %{conn: conn} do
+    test "major_issues result renders high-severity issues + out-of-stock", %{conn: conn} do
       task = a_task("major_issues") |> run_to_completion()
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
-      assert html =~ "Sprite 500ml MISSING"
-      assert html =~ "high"
+      assert html =~ "high"            # severity
+      assert html =~ "out_of_stock"    # new categorized issue type
     end
   end
 

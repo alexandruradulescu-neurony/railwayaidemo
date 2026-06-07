@@ -4,7 +4,14 @@ defmodule Showcase.Planogram.MockPrompts do
   `compliant`, `minor_issues`, `major_issues`.
 
   Each scenario returns a strict-JSON string matching the schema in
-  `Impl.VisionRequest`'s system prompt.
+  `Impl.VisionRequest`'s system prompt. Scenarios include:
+
+    * `compliance_score` + `executive_summary`
+    * `issues` with type (mismatch / out_of_stock / wrong_placement / ...),
+      severity, row index, and horizontal position so the UI can anchor
+      labels on the shelf photo
+    * `extracted_prices` — every price tag the model "sees"
+    * legacy `rows` / `extracted_products` for backward-compat
   """
 
   alias Showcase.Common.AnthropicClient.Mock
@@ -29,111 +36,177 @@ defmodule Showcase.Planogram.MockPrompts do
 
   defp scenarios do
     [
-      {"compliant", compliant_json(), %{input_tokens: 2400, output_tokens: 380, cost_estimate_cents: 1.29}},
-      {"minor_issues", minor_issues_json(), %{input_tokens: 2400, output_tokens: 520, cost_estimate_cents: 1.50}},
-      {"major_issues", major_issues_json(), %{input_tokens: 2400, output_tokens: 700, cost_estimate_cents: 1.77}}
+      {"compliant", compliant_json(),
+       %{input_tokens: 2800, output_tokens: 520, cost_estimate_cents: 1.62}},
+      {"minor_issues", minor_issues_json(),
+       %{input_tokens: 2800, output_tokens: 720, cost_estimate_cents: 1.92}},
+      {"major_issues", major_issues_json(),
+       %{input_tokens: 2800, output_tokens: 950, cost_estimate_cents: 2.26}}
     ]
   end
 
   defp compliant_json do
     Jason.encode!(%{
       compliance_score: 96,
-      executive_summary: "Shelf matches planogram. All rows compliant; product facings within tolerance.",
-      rows: [
-        %{name: "Top shelf", position: 1, status: "compliant",
-          found_products: [%{sku: "S1", name: "Coca-Cola 500ml", qty: 6}], issues: []},
-        %{name: "Middle shelf", position: 2, status: "compliant",
-          found_products: [%{sku: "S2", name: "Sprite 500ml", qty: 5}, %{sku: "S3", name: "Fanta 500ml", qty: 4}], issues: []},
-        %{name: "Bottom shelf", position: 3, status: "compliant",
-          found_products: [%{sku: "S4", name: "Pepsi 500ml", qty: 6}], issues: []}
-      ],
+      executive_summary:
+        "Shelf matches the reference planogram. All product blocks are in their expected positions; price tags are visible and within tolerance.",
       issues: [],
-      unauthorized_items: [],
+      extracted_prices: [
+        %{text: "RON 15.99", row: 1, horizontal_position: "left"},
+        %{text: "RON 12.50", row: 1, horizontal_position: "right"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "left"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "center"},
+        %{text: "RON 9.99", row: 2, horizontal_position: "right"},
+        %{text: "RON 15.99", row: 3, horizontal_position: "left"},
+        %{text: "RON 4.20", row: 3, horizontal_position: "right"}
+      ],
       suggestions: ["Shelf is in good state — no action needed."],
       photo_quality: %{score: 95, notes: "Sharp focus, good lighting."},
+      rows: [
+        %{name: "Top shelf", position: 1, status: "compliant",
+          found_products: [%{sku: "S1", name: "Cereal A", qty: 6}], issues: []},
+        %{name: "Middle shelf", position: 2, status: "compliant",
+          found_products: [%{sku: "S2", name: "Cereal B", qty: 5}, %{sku: "S3", name: "Cereal C", qty: 4}], issues: []},
+        %{name: "Bottom shelf", position: 3, status: "compliant",
+          found_products: [%{sku: "S4", name: "Snack D", qty: 6}], issues: []}
+      ],
+      unauthorized_items: [],
       extracted_products: [
-        %{sku: "S1", name: "Coca-Cola 500ml", qty: 6},
-        %{sku: "S2", name: "Sprite 500ml", qty: 5},
-        %{sku: "S3", name: "Fanta 500ml", qty: 4},
-        %{sku: "S4", name: "Pepsi 500ml", qty: 6}
+        %{sku: "S1", name: "Cereal A", qty: 6},
+        %{sku: "S2", name: "Cereal B", qty: 5},
+        %{sku: "S3", name: "Cereal C", qty: 4},
+        %{sku: "S4", name: "Snack D", qty: 6}
       ]
     })
   end
 
   defp minor_issues_json do
     Jason.encode!(%{
-      compliance_score: 78,
-      executive_summary: "Shelf is mostly compliant. Two minor issues: Sprite is 1 facing under quota; Pepsi label is partially obscured.",
-      rows: [
-        %{name: "Top shelf", position: 1, status: "compliant",
-          found_products: [%{sku: "S1", name: "Coca-Cola 500ml", qty: 6}], issues: []},
-        %{name: "Middle shelf", position: 2, status: "partial",
-          found_products: [%{sku: "S2", name: "Sprite 500ml", qty: 4}, %{sku: "S3", name: "Fanta 500ml", qty: 4}],
-          issues: ["Sprite is 1 facing under quota (expected 5, found 4)."]},
-        %{name: "Bottom shelf", position: 3, status: "partial",
-          found_products: [%{sku: "S4", name: "Pepsi 500ml", qty: 6}],
-          issues: ["Pepsi label is partially obscured by promotional sticker."]}
-      ],
+      compliance_score: 85,
+      executive_summary:
+        "Shelf is mostly compliant. Detected: a wrong placement on the middle shelf and an out-of-stock slot on the bottom. Price tags all extracted cleanly.",
       issues: [
-        %{type: "wrong_qty", severity: "medium",
-          description: "Sprite under-stocked on middle shelf (4 vs expected 5).",
-          business_impact: "~10% lost facings → estimated 3-5% velocity drop on this SKU."},
-        %{type: "photo_quality", severity: "low",
-          description: "Promotional sticker partially covering Pepsi label on bottom shelf.",
-          business_impact: "Cosmetic — does not affect compliance scoring."}
+        %{
+          type: "wrong_placement",
+          severity: "medium",
+          description: "Cereal B placed on top shelf — expected on middle shelf per planogram.",
+          row: 1,
+          horizontal_position: "center",
+          business_impact: "Reduced visibility for the SKU; minor planogram drift."
+        },
+        %{
+          type: "mismatch",
+          severity: "medium",
+          description: "Snack pack on middle shelf left position does not match reference.",
+          row: 2,
+          horizontal_position: "left",
+          business_impact: "Visible category drift; impacts shopper flow."
+        },
+        %{
+          type: "out_of_stock",
+          severity: "low",
+          description: "Empty slot on bottom shelf (left position) where Snack D should be.",
+          row: 3,
+          horizontal_position: "left",
+          business_impact: "Lost-sale risk on a top-50 SKU until restocked."
+        }
+      ],
+      extracted_prices: [
+        %{text: "RON 15.99", row: 1, horizontal_position: "left"},
+        %{text: "RON 12.50", row: 1, horizontal_position: "center"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "left"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "center"},
+        %{text: "RON 9.99", row: 2, horizontal_position: "right"},
+        %{text: "RON 15.99", row: 3, horizontal_position: "left"},
+        %{text: "RON 4.20", row: 3, horizontal_position: "right"}
+      ],
+      suggestions: [
+        "Move Cereal B from top shelf to middle shelf.",
+        "Restock bottom-shelf left slot with Snack D."
+      ],
+      photo_quality: %{score: 90, notes: "Good lighting, mild glare on bottom shelf."},
+      rows: [
+        %{name: "Top shelf", position: 1, status: "partial",
+          found_products: [%{sku: "S1", name: "Cereal A", qty: 6}, %{sku: "S2", name: "Cereal B (misplaced)", qty: 2}],
+          issues: ["Cereal B misplaced from middle shelf."]},
+        %{name: "Middle shelf", position: 2, status: "partial",
+          found_products: [%{sku: "S3", name: "Cereal C", qty: 4}], issues: ["Cereal B missing from expected position."]},
+        %{name: "Bottom shelf", position: 3, status: "partial",
+          found_products: [%{sku: "S4", name: "Snack D", qty: 4}], issues: ["1 facing out of stock on left."]}
       ],
       unauthorized_items: [],
-      suggestions: ["Restock 1 facing of Sprite 500ml on middle shelf.", "Remove or relocate the promotional sticker on bottom shelf."],
-      photo_quality: %{score: 90, notes: "Good lighting, mild glare on bottom shelf."},
       extracted_products: [
-        %{sku: "S1", name: "Coca-Cola 500ml", qty: 6},
-        %{sku: "S2", name: "Sprite 500ml", qty: 4},
-        %{sku: "S3", name: "Fanta 500ml", qty: 4},
-        %{sku: "S4", name: "Pepsi 500ml", qty: 6}
+        %{sku: "S1", name: "Cereal A", qty: 6},
+        %{sku: "S2", name: "Cereal B", qty: 2},
+        %{sku: "S3", name: "Cereal C", qty: 4},
+        %{sku: "S4", name: "Snack D", qty: 4}
       ]
     })
   end
 
   defp major_issues_json do
     Jason.encode!(%{
-      compliance_score: 32,
-      executive_summary: "Shelf is significantly non-compliant. Sprite missing entirely, unauthorized energy drinks on top shelf, Fanta short-stocked.",
+      compliance_score: 42,
+      executive_summary:
+        "Significant deviation from planogram. 12 mismatches detected across all four rows, including two complete out-of-stock zones and an unauthorized energy drink display on the top shelf. Price tags still extracted, but layout requires immediate remediation.",
+      issues: [
+        %{type: "mismatch", severity: "high",
+          description: "Top shelf left section has wrong product family (energy drinks vs expected cereal).",
+          row: 1, horizontal_position: "left",
+          business_impact: "Major category drift; shopper confusion."},
+        %{type: "unauthorized_item", severity: "high",
+          description: "Red Bull display on top shelf not approved for this store class.",
+          row: 1, horizontal_position: "center",
+          business_impact: "Unsanctioned brand presence; revenue accounting impact."},
+        %{type: "out_of_stock", severity: "high",
+          description: "Bottom shelf left section is empty.",
+          row: 3, horizontal_position: "left",
+          business_impact: "Lost-sale event across multiple SKUs."},
+        %{type: "out_of_stock", severity: "medium",
+          description: "Middle shelf right section empty — Cereal C absent.",
+          row: 2, horizontal_position: "right",
+          business_impact: "Top-10 SKU missing from secondary placement."},
+        %{type: "wrong_placement", severity: "medium",
+          description: "Cereal A bagged variant on middle shelf — should be boxed format on top.",
+          row: 2, horizontal_position: "center",
+          business_impact: "Wrong pack size visible to shoppers."},
+        %{type: "wrong_qty", severity: "medium",
+          description: "Snack D facings on bottom-right are 2 (expected 4).",
+          row: 3, horizontal_position: "right",
+          business_impact: "Visible gap; reduced share of shelf."}
+      ],
+      extracted_prices: [
+        %{text: "RON 15.99", row: 1, horizontal_position: "left"},
+        %{text: "RON 12.99", row: 1, horizontal_position: "right"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "left"},
+        %{text: "RON 8.50", row: 2, horizontal_position: "center"},
+        %{text: "RON 15.99", row: 3, horizontal_position: "left"},
+        %{text: "RON 4.20", row: 3, horizontal_position: "center"},
+        %{text: "RON 8.50", row: 3, horizontal_position: "right"}
+      ],
+      suggestions: [
+        "Immediate: remove unauthorized Red Bull display from top shelf.",
+        "Restock middle-right and bottom-left out-of-stock slots.",
+        "Swap bagged Cereal A on middle for boxed format; relocate to top.",
+        "Add 2 facings of Snack D on bottom-right."
+      ],
+      photo_quality: %{score: 88, notes: "Adequate — some glare on top row."},
       rows: [
         %{name: "Top shelf", position: 1, status: "non_compliant",
-          found_products: [%{sku: "S1", name: "Coca-Cola 500ml", qty: 4}, %{sku: "X1", name: "Red Bull 250ml", qty: 3}],
-          issues: ["Coca-Cola under-stocked (4 vs 6).", "Unauthorized: Red Bull 250ml not on planogram."]},
+          found_products: [%{sku: "X1", name: "Red Bull 250ml", qty: 4}, %{sku: "S1", name: "Cereal A (boxed)", qty: 2}],
+          issues: ["Energy drinks not on planogram.", "Cereal A under-stocked."]},
         %{name: "Middle shelf", position: 2, status: "non_compliant",
-          found_products: [%{sku: "S3", name: "Fanta 500ml", qty: 2}],
-          issues: ["Sprite 500ml MISSING (expected 5, found 0).", "Fanta short-stocked (2 vs 4)."]},
-        %{name: "Bottom shelf", position: 3, status: "compliant",
-          found_products: [%{sku: "S4", name: "Pepsi 500ml", qty: 6}], issues: []}
-      ],
-      issues: [
-        %{type: "missing_product", severity: "high",
-          description: "Sprite 500ml entirely missing from middle shelf (expected 5 facings).",
-          business_impact: "Major — Sprite is a top-10 SKU; full out-of-stock event."},
-        %{type: "unauthorized_item", severity: "high",
-          description: "Red Bull 250ml present on top shelf — not on planogram for this store class.",
-          business_impact: "Planogram drift; potential cannibalization of authorized SKUs."},
-        %{type: "wrong_qty", severity: "medium",
-          description: "Coca-Cola 500ml under-stocked (4 vs expected 6).",
-          business_impact: "~33% facing loss on flagship SKU."},
-        %{type: "wrong_qty", severity: "medium",
-          description: "Fanta 500ml under-stocked (2 vs expected 4).",
-          business_impact: "Visible gap; reduced category share-of-shelf."}
+          found_products: [%{sku: "S1", name: "Cereal A (bagged)", qty: 3}],
+          issues: ["Wrong pack format.", "Cereal C missing."]},
+        %{name: "Bottom shelf", position: 3, status: "non_compliant",
+          found_products: [%{sku: "S4", name: "Snack D", qty: 2}],
+          issues: ["Left section empty.", "Snack D short-stocked."]}
       ],
       unauthorized_items: [%{name: "Red Bull 250ml", row: 1}],
-      suggestions: [
-        "Immediate restock: 5 facings of Sprite 500ml on middle shelf.",
-        "Remove Red Bull 250ml from top shelf — not authorized for this planogram.",
-        "Restock 2 facings Coca-Cola 500ml + 2 facings Fanta 500ml."
-      ],
-      photo_quality: %{score: 88, notes: "Adequate."},
       extracted_products: [
-        %{sku: "S1", name: "Coca-Cola 500ml", qty: 4},
-        %{sku: "X1", name: "Red Bull 250ml", qty: 3},
-        %{sku: "S3", name: "Fanta 500ml", qty: 2},
-        %{sku: "S4", name: "Pepsi 500ml", qty: 6}
+        %{sku: "X1", name: "Red Bull 250ml", qty: 4},
+        %{sku: "S1", name: "Cereal A", qty: 5},
+        %{sku: "S4", name: "Snack D", qty: 2}
       ]
     })
   end

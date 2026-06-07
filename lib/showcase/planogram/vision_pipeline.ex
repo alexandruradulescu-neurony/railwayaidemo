@@ -27,6 +27,7 @@ defmodule Showcase.Planogram.VisionPipeline do
           {:ok, VerificationTask.t()} | {:error, term()}
   def analyze(%VerificationTask{} = task, opts) do
     photo_bytes = Keyword.get(opts, :photo_bytes)
+    reference_bytes = Keyword.get(opts, :reference_bytes)
     max_tokens = Keyword.get(opts, :max_tokens, 4096)
 
     task = task |> Repo.preload(:planogram)
@@ -34,7 +35,7 @@ defmodule Showcase.Planogram.VisionPipeline do
     with :ok <- ensure_photo(photo_bytes),
          {:ok, task} <- mark_analyzing(task),
          _ <- broadcast(task.id, {:planogram, :task_analyzing, task.id}),
-         {:ok, raw_response} <- call_vision(task, photo_bytes, max_tokens),
+         {:ok, raw_response} <- call_vision(task, photo_bytes, reference_bytes, max_tokens),
          {:ok, decoded, partial?} <- parse_response(raw_response.text),
          {:ok, task} <- mark_complete(task, decoded, raw_response.usage, partial?) do
       broadcast(task.id, {:planogram, :task_complete, task.id})
@@ -57,20 +58,23 @@ defmodule Showcase.Planogram.VisionPipeline do
     |> Repo.update()
   end
 
-  defp call_vision(task, photo_bytes, max_tokens) do
+  defp call_vision(task, photo_bytes, reference_bytes, max_tokens) do
     planogram = %{
       name: task.planogram.name,
       expected_rows: task.planogram.expected_rows
     }
 
-    request =
-      VisionRequest.build(planogram, photo_bytes,
-        scenario: task.scenario,
-        max_tokens: max_tokens
-      )
+    opts =
+      [scenario: task.scenario, max_tokens: max_tokens]
+      |> maybe_put(:reference_bytes, reference_bytes)
+
+    request = VisionRequest.build(planogram, photo_bytes, opts)
 
     AnthropicClient.call(request)
   end
+
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp parse_response(text) do
     case ResilientJSONParser.parse(text) do
