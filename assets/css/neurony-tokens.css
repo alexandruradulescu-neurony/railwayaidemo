@@ -1,0 +1,72 @@
+/* ============================================================
+   NEURONY — Forward Deployed Engineer landing page
+   Design tokens extracted from Figma ("Neurony.fig")
+   Frame: Desktop / Forward Deployed Engineer (node 3077:7713)
+   ============================================================ */
+
+:root {
+  /* ── BRAND COLOR ─────────────────────────────────────── */
+  --color-purple:        #8A79FB;  /* primary accent — eyebrows, links, primary buttons (rgb 138 121 251) */
+  --color-purple-stroke: #9747FF;  /* deep purple — strokes / focus rings (rgb 151 71 255) */
+  --color-purple-soft:   #D062FF;  /* soft magenta accent (rgb 208 98 255) */
+
+  /* Neutrals (purple-tinted ink) */
+  --color-ink:           #2E2B41;  /* primary text on light (rgb 46 43 65) */
+  --color-ink-deep:      #281A4C;  /* dark section background (rgb 40 26 76) */
+  --color-body-on-dark:  #E6E7F3;  /* body text on dark sections (rgb 230 231 243) */
+  --color-line:          #D3D5EA;  /* hairline / muted fill (rgb 211 213 234) */
+  --color-surface-lav:   #EEEEFF;  /* light lavender section background (rgb 238 238 255) */
+  --color-surface-lav-2: #F4F5FA;  /* near-white lavender (rgb 244 245 250) */
+  --color-white:         #FFFFFF;
+
+  /* Accent palette (used sparingly: chips, status, illustrations) */
+  --color-cyan:          #63C1FF;  /* rgb 99 193 255 */
+  --color-teal:          #0FB4CA;  /* rgb 15 180 202 */
+  --color-green:         #19C332;  /* rgb 25 195 50 */
+  --color-amber:         #FEBC2E;  /* rgb 254 188 46 */
+  --color-red:           #CD0503;  /* rgb 205 5 3 */
+
+  /* Translucent (borders / overlays on dark) */
+  --border-on-dark:      rgba(255,255,255,0.20);
+  --overlay-ink-20:      rgba(46,43,65,0.20);
+
+  /* ── TYPOGRAPHY ──────────────────────────────────────── */
+  /* Both families are free Google Fonts. SF Pro/Compact in the
+     file are Apple system fonts used only by iOS mocks — ignore for web. */
+  --font-heading: "Fira Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body:    "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Type scale (px @ 1512 desktop / line-height) */
+  --text-hero:        64px;  /* Fira Sans 700 / 70 — hero heading */
+  --text-h1:          56px;  /* Fira Sans 700 / 60 — section headings */
+  --text-h2:          32px;  /* Fira Sans 700 / 36 — step / card headings */
+  --text-lead:        24px;  /* Montserrat 700 / 32 — lead paragraph */
+  --text-subhead:     20px;  /* Montserrat 700 / 28 — subheadings */
+  --text-body:        18px;  /* Montserrat 600 / 28 — eyebrow & default body */
+  --text-body-sm:     16px;  /* Montserrat 500 / 24 — small body */
+  --eyebrow-tracking: 0.04em; /* eyebrows are UPPERCASE Montserrat 700 18px */
+
+  /* ── SPACING ─────────────────────────────────────────── */
+  --space-xs:  8px;
+  --space-sm:  12px;
+  --space-md:  24px;   /* default gap inside groups & card grids */
+  --space-lg:  64px;   /* section vertical padding & column gap */
+  --pad-page:  182px;  /* page horizontal margin @ 1512 (≈12%) */
+  --content-max: 1148px; /* inner content width */
+
+  /* ── RADII ───────────────────────────────────────────── */
+  --radius-sm:   8px;   /* pdf thumbnail */
+  --radius-md:   16px;  /* icon tiles, page frame */
+  --radius-lg:   24px;  /* media panels & content cards */
+  --radius-pill: 500px; /* tags / chips */
+
+  /* ── ELEVATION ───────────────────────────────────────── */
+  --shadow-thumb: 0px 12px 24px 0px rgba(46,43,65,0.20);
+  --shadow-card:  0px 3px 7px rgba(0,0,0,0.10),
+                  0px 13px 13px rgba(0,0,0,0.09),
+                  0px 30px 18px rgba(0,0,0,0.05);
+}
+
+/* Google Fonts — load in <head> instead if you prefer:
+   <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet"> */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
