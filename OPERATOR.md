@@ -18,9 +18,14 @@ restore to a known baseline state.
 
 ## Environment variables
 
-Copy `.env.example` to `.env` (gitignored) for local dev, or set these
-on your deploy host. The app raises at boot if a required prod variable
-is missing.
+For **local dev**: copy `.env.example` to `.env` (gitignored), fill in
+your values, then run `mix phx.server`. The app auto-loads `.env` on
+boot — no manual `export` needed. A real env var set in your shell
+still wins over `.env`, so you can override on a one-off basis.
+
+For **production**: set these as environment variables on your deploy
+host (Fly secrets, Render env vars, etc.) — `.env` is not loaded in prod.
+The app raises at boot if a required prod variable is missing.
 
 | Variable | Purpose | When required | Default |
 |---|---|---|---|

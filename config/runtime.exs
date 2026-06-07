@@ -7,6 +7,32 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
+# ── Auto-load .env file in dev ────────────────────────────────────────
+# Copy .env.example → .env, fill in your values, and this block will
+# read them into the process env before the rest of the config runs.
+# Dev only — prod must use real env vars set by the deploy platform.
+# Test ignores .env entirely (Mock forces deterministic behavior).
+if config_env() == :dev and File.exists?(".env") do
+  ".env"
+  |> File.stream!()
+  |> Stream.map(&String.trim/1)
+  |> Stream.reject(fn line -> line == "" or String.starts_with?(line, "#") end)
+  |> Enum.each(fn line ->
+    case String.split(line, "=", parts: 2) do
+      [key, value] ->
+        # Strip optional surrounding quotes on the value
+        value = String.trim(value) |> String.trim("\"") |> String.trim("'")
+        # System env wins if already set (CLI overrides .env)
+        if System.get_env(String.trim(key)) == nil do
+          System.put_env(String.trim(key), value)
+        end
+
+      _ ->
+        :ok
+    end
+  end)
+end
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server
