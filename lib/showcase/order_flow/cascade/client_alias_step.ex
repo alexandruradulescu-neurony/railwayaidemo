@@ -21,7 +21,6 @@ defmodule Showcase.OrderFlow.Cascade.ClientAliasStep do
   @impl true
   def try_match(_input, %{client_id: nil}), do: :no_match
 
-  @impl true
   def try_match(input, %{repo: repo, now: now, client_id: client_id}) when is_binary(input) do
     normalized = Normalize.normalize_text(input)
 

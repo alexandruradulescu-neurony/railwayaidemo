@@ -81,9 +81,16 @@ defmodule Showcase.InvoiceApproval do
     )
   end
 
-  @doc "Enqueue an Oban job to process this bundle."
+  @doc """
+  Enqueue an Oban job to process this bundle.
+
+  Uses Oban's unique constraint so two operator tabs hitting the same
+  bundle mid-analysis don't insert duplicate verdicts. The 60-second
+  window is wide enough to cover the longest real Claude call.
+  """
   def enqueue(bundle_id) when is_integer(bundle_id) do
-    Worker.new(%{bundle_id: bundle_id}) |> Oban.insert()
+    Worker.new(%{bundle_id: bundle_id}, unique: [period: 60, fields: [:args, :worker]])
+    |> Oban.insert()
   end
 
   # Map demo clients to a canonical scenario so composed bundles inherit
@@ -263,7 +270,7 @@ defmodule Showcase.InvoiceApproval do
   def erp_reference(%DocumentBundle{id: id}), do: erp_reference(id)
 
   def erp_reference(id) when is_integer(id) do
-    "AP-2026-#{:io_lib.format("~6..0B", [id]) |> List.to_string()}"
+    "AP-2026-#{id |> to_string() |> String.pad_leading(6, "0")}"
   end
 
   # ── Status derivation for inbox badges ────────────────────────────────

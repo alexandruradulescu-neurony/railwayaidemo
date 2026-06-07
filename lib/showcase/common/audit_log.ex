@@ -66,10 +66,29 @@ defmodule Showcase.Common.AuditLog do
       prepare build(sort: [inserted_at: :desc])
       filter expr(demo == ^arg(:demo) and entity_type == ^arg(:entity_type) and entity_id == ^arg(:entity_id))
     end
+
+    # DB-side filter + sort + limit. The Ash.read! → Enum.filter pattern
+    # in audit_log_live.ex pulled every row over the wire, which is fine
+    # for demo loads (few dozen rows) but O(n) for a long-running deploy.
+    # See REVIEW.md MED-02.
+    read :list_recent do
+      argument :demo, :string, allow_nil?: true
+      argument :limit, :integer, default: 50
+
+      prepare build(sort: [inserted_at: :desc])
+
+      filter expr(if is_nil(^arg(:demo)), do: true, else: demo == ^arg(:demo))
+
+      prepare fn query, _ctx ->
+        limit = Ash.Query.get_argument(query, :limit)
+        Ash.Query.limit(query, limit)
+      end
+    end
   end
 
   code_interface do
     define :write, args: [:demo, :entity_type, :entity_id, :event]
     define :for_entity, args: [:demo, :entity_type, :entity_id]
+    define :list_recent
   end
 end

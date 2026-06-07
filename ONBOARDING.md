@@ -131,7 +131,7 @@ None of these files need to be in the repo. `priv/static/uploads/` is gitignored
 After `mix setup`:
 
 ```bash
-# Should print 304+ tests, 0 failures
+# Should print 299+ tests, 0 failures
 mix test
 
 # Should show http://localhost:4321/ → 200 once started

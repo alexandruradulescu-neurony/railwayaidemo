@@ -14,9 +14,27 @@ defmodule Showcase.OrderFlow do
 
   alias Showcase.Common.AnthropicClient.Mock
   alias Showcase.OrderFlow.MockPrompts
-  alias Showcase.OrderFlow.Schemas.{Order, SyntheticMessage}
+  alias Showcase.OrderFlow.Schemas.{Order, ProductAlias, SyntheticMessage}
   alias Showcase.OrderFlow.Worker
   alias Showcase.Repo
+
+  @doc """
+  Look up the global (client_id IS NULL) `ProductAlias` row for a
+  given normalized text + product. Returns the alias struct or `nil`.
+
+  Centralizes a query open-coded in 4 places — easy to drift, e.g. one
+  callsite filtering `not is_nil(client_id)` instead. See REVIEW.md MED-05.
+  """
+  @spec find_global_alias(String.t(), integer()) :: ProductAlias.t() | nil
+  def find_global_alias(normalized_text, product_id) do
+    Repo.one(
+      from a in ProductAlias,
+        where:
+          a.normalized_text == ^normalized_text and
+            a.product_id == ^product_id and
+            is_nil(a.client_id)
+    )
+  end
 
   @upload_dir "priv/static/uploads/order_flow"
   @upload_url_prefix "/uploads/order_flow"
@@ -93,12 +111,24 @@ defmodule Showcase.OrderFlow do
   @spec delete_message(integer() | SyntheticMessage.t()) ::
           {:ok, SyntheticMessage.t()} | {:error, term()}
   def delete_message(%SyntheticMessage{} = msg) do
-    Enum.each(msg.attachment_paths || [], &delete_upload/1)
-    # Null-out the order's FK reference, then delete the message.
-    from(o in Order, where: o.synthetic_message_id == ^msg.id)
-    |> Repo.update_all(set: [synthetic_message_id: nil])
+    # Wrap the FK null-out + delete in a transaction so a half-finished
+    # delete can't leave orphan orders or claim "deleted" without it.
+    # Files on disk are removed AFTER the DB transaction commits — see
+    # REVIEW.md MED-04.
+    Repo.transaction(fn ->
+      from(o in Order, where: o.synthetic_message_id == ^msg.id)
+      |> Repo.update_all(set: [synthetic_message_id: nil])
 
-    Repo.delete(msg)
+      Repo.delete!(msg)
+    end)
+    |> case do
+      {:ok, _} ->
+        Enum.each(msg.attachment_paths || [], &delete_upload/1)
+        {:ok, msg}
+
+      {:error, _} = err ->
+        err
+    end
   end
 
   def delete_message(id) when is_integer(id) do
@@ -257,7 +287,7 @@ defmodule Showcase.OrderFlow do
   def erp_reference(%Order{id: id}), do: erp_reference(id)
 
   def erp_reference(id) when is_integer(id) do
-    "ERP-2026-#{:io_lib.format("~6..0B", [id]) |> List.to_string()}"
+    "ERP-2026-#{id |> to_string() |> String.pad_leading(6, "0")}"
   end
 
   @doc """
@@ -304,14 +334,7 @@ defmodule Showcase.OrderFlow do
 
       now = DateTime.utc_now()
 
-      existing_alias =
-        Repo.one(
-          from a in ProductAlias,
-            where:
-              a.normalized_text == ^normalized and
-                a.product_id == ^product.id and
-                is_nil(a.client_id)
-        )
+      existing_alias = find_global_alias(normalized, product.id)
 
       unless existing_alias do
         %ProductAlias{}

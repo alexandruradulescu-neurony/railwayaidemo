@@ -101,7 +101,7 @@ defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStep do
   end
 
   # Build the full system prompt with a freshly-read catalog.
-  # ~104 products × ~50 chars ≈ 5KB — well within the model's context window.
+  # ~130 products × ~50 chars ≈ 6.5KB — well within the model's context window.
   defp build_full_prompt(repo) do
     catalog =
       repo.all(from p in Product, select: {p.sku, p.name}, order_by: p.sku)

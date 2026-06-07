@@ -9,9 +9,9 @@ A single Phoenix application bundling five demos behind a dashboard:
 
 - **OrderFlow** — turn unstructured customer messages into structured orders
 - **Invoice Approval** — three-way contract / delivery-note / invoice match
-- **RecruitFlow** — 5-state recruitment funnel with AI phone screens + CV cascade
 - **Planogram Manager** — retail shelf compliance via Claude vision
-- **Restaurant Compliance** — deferred (tile shows "Coming soon")
+- **Restaurant Compliance** — rule-by-rule mise-en-place audit via Claude vision
+- **RecruitFlow** — deferred (tile shows "Coming soon")
 
 You run one instance, click "Reset" between prospect meetings, and demos
 restore to a known baseline state.
