@@ -7,7 +7,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
   alias Showcase.Planogram.{Seed, MockPrompts}
 
   setup do
-    Seed.seed_test_fixtures()
+    Seed.seed()
     MockPrompts.register_all()
     :ok
   end
@@ -17,15 +17,17 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
       {:ok, _view, html} = live(conn, "/planogram")
       assert html =~ "Merchandiser"
       assert html =~ "Today"
-      assert html =~ "Overdue"
     end
 
-    test "lists 3 seeded tasks bucketed by due date", %{conn: conn} do
+    test "lists seeded tasks bucketed by due date", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/planogram")
       rendered = render(view)
-      assert rendered =~ "Downtown Mart"
-      assert rendered =~ "Westside Express"
-      assert rendered =~ "Eastpark Grocery"
+      # 3 pharmacy + 2 juices from prod seed
+      assert rendered =~ "Farmacia Tei Centru"
+      assert rendered =~ "Sensiblu Băneasa"
+      assert rendered =~ "Catena Plaza"
+      assert rendered =~ "Hypermarket Băneasa"
+      assert rendered =~ "Mega Image Centru"
     end
 
     test "switches role to Manager via phx-click", %{conn: conn} do
@@ -66,7 +68,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
       {:ok, view, _html} = live(conn, "/planogram")
       view |> element("button", "Manager") |> render_click()
       rendered = render(view)
-      assert rendered =~ "3-shelf snack display"
+      assert rendered =~ "Pharmacy OTC end-cap"
       assert rendered =~ "Create task"
       assert rendered =~ "Add planogram"
     end

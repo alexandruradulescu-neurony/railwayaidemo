@@ -32,30 +32,16 @@ defmodule Showcase.OrderFlow.Seed do
   alias Showcase.Repo
 
   @clients [
-    # Legacy generic clients (kept for the original seeded scenarios + tests)
-    %{name: "Acme Inc", email: "orders@acme.example"},
-    %{name: "Beta Industries", email: "purchasing@beta.example"},
-    %{name: "Gamma Wholesale", email: "ops@gamma.example"},
     # Meesenburg demo clients — match the senders of the live-demo PDFs.
     %{name: "Meesenburg Romania", email: "comenzi@meesenburg.ro"},
     %{name: "Alexandru Erdei", email: "alexandru.erdei@meesenburg.ro"},
     %{name: "Dragos Manolache", email: "dragosimcom@gmail.com"}
   ]
 
-  # ── Catalog (~104 products) ────────────────────────────────────────────
+  # ── Catalog (130 products — full Meesenburg feronerie SKUs) ───────────
   # SKU naming follows the patterns observed in the Meesenburg PDFs:
   # K1001/2001/3001/4001/5001-XX-n03, A5000-series, plus named items.
   @products [
-    # ── Legacy generic catalog (kept for old test fixtures) ─────────────
-    %{sku: "WGT-001", name: "Widget", normalized_name: "widgets"},
-    %{sku: "GDG-001", name: "Gadget", normalized_name: "gadgets"},
-    %{sku: "HNG-001", name: "Hinges", normalized_name: "hinges"},
-    %{sku: "LCK-001", name: "Door Locks", normalized_name: "door locks"},
-    %{sku: "GSK-4MM", name: "4mm Gasket", normalized_name: "4mm gasket"},
-    %{sku: "BLT-M8", name: "M8 Bolts", normalized_name: "m8 bolts"},
-    %{sku: "WSH-M8", name: "M8 Washers", normalized_name: "m8 washers"},
-    %{sku: "PNT-RED", name: "Red Paint", normalized_name: "red paint"},
-
     # ── K1001 — Mânere ușă AXOR (10) ────────────────────────────────────
     %{sku: "K1001-01-n03", name: "Mâner ușă AXOR negru 28x92", normalized_name: "k1001-01-n03 maner usa axor negru"},
     %{sku: "K1001-07-n03", name: "Mâner ușă AXOR alb 28x92", normalized_name: "k1001-07-n03 maner usa axor alb"},
@@ -348,11 +334,7 @@ defmodule Showcase.OrderFlow.Seed do
   defp seed_aliases do
     now = DateTime.utc_now()
 
-    # 1. Keep the legacy client-scoped alias (Beta Industries → 4mm gasket)
-    #    so the historical "self-improving loop" integration test still passes.
-    seed_legacy_beta_alias(now)
-
-    # 2. Seed all global aliases (client_id: NULL) at confidence 0.80.
+    # Seed all global aliases (client_id: NULL) at confidence 0.80.
     Enum.each(@global_aliases, fn {alias_text, sku} ->
       case Repo.get_by(Product, sku: sku) do
         nil ->
@@ -383,34 +365,6 @@ defmodule Showcase.OrderFlow.Seed do
           end
       end
     end)
-  end
-
-  defp seed_legacy_beta_alias(now) do
-    beta = Repo.get_by(Client, name: "Beta Industries")
-    gasket = Repo.get_by(Product, sku: "GSK-4MM")
-
-    if beta && gasket do
-      existing =
-        Repo.get_by(ProductAlias,
-          normalized_text: "the 4mm gaskets we always order",
-          product_id: gasket.id,
-          client_id: beta.id
-        )
-
-      unless existing do
-        %ProductAlias{}
-        |> ProductAlias.changeset(%{
-          normalized_text: "the 4mm gaskets we always order",
-          product_id: gasket.id,
-          client_id: beta.id,
-          confidence: 0.85,
-          last_used_at: DateTime.add(now, -30, :day),
-          use_count: 5,
-          source: "seed"
-        })
-        |> Repo.insert!()
-      end
-    end
   end
 
   defp seed_messages do

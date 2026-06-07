@@ -13,18 +13,30 @@ defmodule Showcase.OrderFlow.SelfImprovingLoopTest do
     OrderFlow.register_mock_responses()
     OrderFlow.Seed.seed()
 
-    # The "mixed_known_unknown" scenario is registered in MockPrompts (mocks
-    # available for tests) but no longer auto-seeded into the inbox (the
-    # demo inbox shows only the 3 Meesenburg scenarios). Insert it here as
-    # a test fixture so the self-improving-loop integration test still has
-    # a message whose cascade fires the Claude fallback step.
+    # Register a scenario whose extraction returns one matchable line (an
+    # exact SKU) and one unknown phrase ("the brown handles") that falls
+    # through to Claude fallback. After the operator corrects the unknown,
+    # a re-run should pick up the new alias instead of calling Claude.
+    Mock.register(
+      "order_flow:extract:v1",
+      scenario: "self_improving_loop_test",
+      text:
+        ~s({"client_hint": "Meesenburg Romania", "lines": [{"description": "K1001-11-n03", "quantity": 5}, {"description": "the brown handles", "quantity": 3}]})
+    )
+
+    Mock.register(
+      "order_flow:claude_fallback:v1",
+      scenario: "the brown handles",
+      text: ~s({"sku": "K1001-11-n03", "confidence": 0.55})
+    )
+
     {:ok, msg} =
       %SyntheticMessage{}
       |> SyntheticMessage.changeset(%{
-        body: "Send 12 widgets and 3 of those gizmo things",
+        body: "5x K1001-11-n03 plus 3 of the brown handles",
         kind: "email",
-        scenario: "mixed_known_unknown",
-        client_hint: "Acme Inc",
+        scenario: "self_improving_loop_test",
+        client_hint: "Meesenburg Romania",
         composed: false
       })
       |> Repo.insert()
@@ -34,24 +46,25 @@ defmodule Showcase.OrderFlow.SelfImprovingLoopTest do
 
   test "after a correction, re-running the same message uses the new alias instead of LLM fallback",
        %{message: msg} do
-    # First run — "those gizmo things" gets matched via Claude fallback (per Mock registration).
+    # First run — "the brown handles" hits claude_fallback (low confidence
+    # → still matched, but flagged as such).
     {:ok, order1} = Pipeline.process_message(msg, %{now: DateTime.utc_now()})
 
-    gizmo_line =
+    fuzzy_line =
       Repo.preload(order1, :lines).lines
-      |> Enum.find(&(&1.raw_description =~ "gizmo"))
+      |> Enum.find(&(&1.raw_description =~ "brown"))
 
-    assert gizmo_line.match_step == "claude_fallback"
+    assert fuzzy_line.match_step == "claude_fallback"
 
-    # Correct it: link to Gadget product manually, simulating the operator UI action.
-    gadget = Repo.get_by!(Product, sku: "GDG-001")
-    client = Repo.get_by!(Client, name: "Acme Inc")
+    # Operator correction — link to the Mâner ușă AXOR maro product.
+    product = Repo.get_by!(Product, sku: "K1001-11-n03")
+    client = Repo.get_by!(Client, name: "Meesenburg Romania")
     now = DateTime.utc_now()
 
     %ProductAlias{}
     |> ProductAlias.changeset(%{
-      normalized_text: Showcase.OrderFlow.Impl.Normalize.normalize_text(gizmo_line.raw_description),
-      product_id: gadget.id,
+      normalized_text: Showcase.OrderFlow.Impl.Normalize.normalize_text(fuzzy_line.raw_description),
+      product_id: product.id,
       client_id: client.id,
       confidence: 0.9,
       last_used_at: now,
@@ -60,17 +73,16 @@ defmodule Showcase.OrderFlow.SelfImprovingLoopTest do
     })
     |> Repo.insert!()
 
-    # Drop the order — pretend the operator ran the same message again.
     Repo.delete!(order1)
 
-    # Re-run the same message — this time the client_alias step should hit, no LLM call.
+    # Re-run the same message — the client_alias step should hit now.
     {:ok, order2} = Pipeline.process_message(msg, %{now: DateTime.utc_now()})
 
-    gizmo_line2 =
+    fuzzy_line2 =
       Repo.preload(order2, :lines).lines
-      |> Enum.find(&(&1.raw_description =~ "gizmo"))
+      |> Enum.find(&(&1.raw_description =~ "brown"))
 
-    assert gizmo_line2.match_step == "client_alias"
-    assert gizmo_line2.product_id == gadget.id
+    assert fuzzy_line2.match_step == "client_alias"
+    assert fuzzy_line2.product_id == product.id
   end
 end

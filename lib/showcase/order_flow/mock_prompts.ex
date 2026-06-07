@@ -17,52 +17,6 @@ defmodule Showcase.OrderFlow.MockPrompts do
   """
 
   @scenarios [
-    %{
-      name: "hinges_and_locks",
-      kind: "email",
-      client_hint: "Acme Inc",
-      from_address: "purchasing@acme-co.example",
-      subject: "Restock order — hinges + door locks",
-      body: "Hi, I need 200 hinges and 50 door locks for the warehouse — same as last month. Thanks!",
-      extract_response: ~s({"client_hint": "Acme Inc", "lines": [{"description": "hinges", "quantity": 200}, {"description": "door locks", "quantity": 50}]}),
-      fallback_responses: []
-    },
-    %{
-      name: "gaskets_alias",
-      kind: "whatsapp",
-      client_hint: "Beta Industries",
-      from_address: "andrei@beta-industries.example",
-      subject: "Gaskets — usual order",
-      body: "10 boxes of the 4mm gaskets we always order",
-      extract_response: ~s({"client_hint": "Beta Industries", "lines": [{"description": "the 4mm gaskets we always order", "quantity": 10}]}),
-      # ClaudeFallbackStep won't be called if a client-scoped alias exists (seeded)
-      fallback_responses: []
-    },
-    %{
-      name: "mixed_known_unknown",
-      kind: "email",
-      client_hint: "Acme Inc",
-      from_address: "purchasing@acme-co.example",
-      subject: "Quick order — widgets + gizmos",
-      body: "Send 12 widgets and 3 of those gizmo things",
-      extract_response: ~s({"client_hint": "Acme Inc", "lines": [{"description": "widgets", "quantity": 12}, {"description": "those gizmo things", "quantity": 3}]}),
-      fallback_responses: [
-        %{scenario: "those gizmo things", text: ~s({"sku": "GDG-001", "confidence": 0.65})}
-      ]
-    },
-    %{
-      name: "low_confidence_mystery",
-      kind: "whatsapp",
-      client_hint: "Acme Inc",
-      from_address: "purchasing@acme-co.example",
-      subject: "Re: last week's order",
-      body: "some of those things we ordered last time",
-      extract_response: ~s({"client_hint": "Acme Inc", "lines": [{"description": "some of those things we ordered last time", "quantity": 1}]}),
-      fallback_responses: [
-        %{scenario: "some of those things we ordered last time", text: ~s({"sku": "GHOST-999", "confidence": 0.2})}
-      ]
-    },
-
     # ── Meesenburg demo scenarios (seeded into the live demo inbox) ───────
     %{
       name: "meesenburg_clean_sku",
@@ -99,20 +53,14 @@ defmodule Showcase.OrderFlow.MockPrompts do
     }
   ]
 
-  # Only these three appear in the live demo inbox — the older scenarios
-  # remain registered as Mocks for test-time use only.
-  @seed_scenario_names ~w(meesenburg_clean_sku meesenburg_informal meesenburg_mixed)
-
   def scenarios, do: @scenarios
 
   @doc """
-  The subset of scenarios that get planted into the demo inbox as
-  `SyntheticMessage` rows. Older scenarios stay in `scenarios/0` for
-  test-time Mock registration only.
+  Scenarios planted into the demo inbox as `SyntheticMessage` rows. All
+  three Meesenburg scenarios qualify; the older Acme/Beta/Gamma scenarios
+  were deleted along with their legacy clients (REVIEW.md HI-03 + MED-06).
   """
-  def seed_scenarios do
-    Enum.filter(@scenarios, &(&1.name in @seed_scenario_names))
-  end
+  def seed_scenarios, do: @scenarios
 
   @doc """
   Look up the scripted extract response text for a scenario name.

@@ -1,5 +1,7 @@
 defmodule Showcase.OrderFlow.ExtractionTest do
-  use ExUnit.Case, async: true
+  # Mock is a process-global GenServer; concurrent test files calling
+  # Mock.reset() race with our Mock.register here. Run sync.
+  use ExUnit.Case, async: false
 
   alias Showcase.Common.AnthropicClient.Mock
   alias Showcase.OrderFlow.Extraction

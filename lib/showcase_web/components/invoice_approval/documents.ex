@@ -218,7 +218,7 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.Documents do
               <td class="border border-line px-2 py-1.5 text-right">buc</td>
               <td class="border border-line px-2 py-1.5 text-right">{item["qty"]}</td>
               <td class="border border-line px-2 py-1.5 text-right">{fmt_money(item["unit_price"])}</td>
-              <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(item["qty"] * item["unit_price"])}</td>
+              <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(line_value(item))}</td>
             </tr>
           </tbody>
           <tfoot>
@@ -405,9 +405,9 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.Documents do
             <td class="border border-line px-2 py-1.5 font-mono">{item["line_key"]}</td>
             <td class="border border-line px-2 py-1.5 text-right">{item["qty"]}</td>
             <td class="border border-line px-2 py-1.5 text-right">{fmt_money(item["unit_price"])}</td>
-            <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(item["qty"] * item["unit_price"])}</td>
-            <td class="border border-line px-2 py-1.5 text-right text-ink/60">{fmt_money(item["qty"] * item["unit_price"] * 0.19)}</td>
-            <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(item["qty"] * item["unit_price"] * 1.19)}</td>
+            <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(line_value(item))}</td>
+            <td class="border border-line px-2 py-1.5 text-right text-ink/60">{fmt_money(line_value(item) * 0.19)}</td>
+            <td class="border border-line px-2 py-1.5 text-right font-mono">{fmt_money(line_value(item) * 1.19)}</td>
           </tr>
         </tbody>
         <tfoot>
@@ -457,15 +457,22 @@ defmodule ShowcaseWeb.InvoiceApproval.Components.Documents do
   defp fmt_money(n) when is_number(n), do: :io_lib.format("~.2f", [n * 1.0]) |> List.to_string()
   defp fmt_money(other), do: to_string(other)
 
+  # Computes `qty * unit_price` for one line item with nil-tolerant defaults.
+  # Used in templates where qty/unit_price may legitimately be missing (partial
+  # ResilientJSONParser results, fresh user uploads with sparse JSONB, or a
+  # malformed scenario fixture). Without this guard, the template would crash
+  # the whole bundle page mid-pitch — see REVIEW.md BL-02.
+  defp line_value(item) when is_map(item) do
+    (item["qty"] || 0) * (item["unit_price"] || 0) * 1.0
+  end
+
+  defp line_value(_), do: 0.0
+
   defp contract_total(line_items) do
-    Enum.reduce(line_items, 0.0, fn item, acc ->
-      acc + (item["qty"] || 0) * (item["unit_price"] || 0) * 1.0
-    end)
+    Enum.reduce(line_items, 0.0, fn item, acc -> acc + line_value(item) end)
   end
 
   defp invoice_subtotal(items) do
-    Enum.reduce(items, 0.0, fn item, acc ->
-      acc + (item["qty"] || 0) * (item["unit_price"] || 0) * 1.0
-    end)
+    Enum.reduce(items, 0.0, fn item, acc -> acc + line_value(item) end)
   end
 end

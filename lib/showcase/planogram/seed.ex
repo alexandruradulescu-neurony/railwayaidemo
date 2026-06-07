@@ -41,9 +41,16 @@ defmodule Showcase.Planogram.Seed do
       juices = upsert_planogram(juices_attrs())
       upsert_tasks(pharmacy, juices)
     end)
+    |> case do
+      {:ok, _} ->
+        seed_system_prompts()
+        :ok
 
-    seed_system_prompts()
-    :ok
+      {:error, reason} ->
+        # Surface the failure so `Showcase.Common.Reset` can roll back the
+        # outer Multi instead of pretending the demo reset succeeded.
+        {:error, reason}
+    end
   end
 
   # ── Pharmacy planogram ────────────────────────────────────────────────
@@ -186,24 +193,6 @@ defmodule Showcase.Planogram.Seed do
     end)
   end
 
-  @doc """
-  Test-only helper: inserts a baseline planogram + 3 verification tasks
-  (one per scenario) so the existing test suite doesn't have to author
-  fixtures per test. The production demo seed (`seed/0`) intentionally
-  does NOT call this — it uses the pharmacy + juices content instead.
-  """
-  def seed_test_fixtures do
-    alias Showcase.Planogram.{Planogram, VerificationTask, MobileHandoff}
-    alias Showcase.Repo
-
-    Repo.transaction(fn ->
-      planogram = upsert_planogram(Planogram, Repo)
-      upsert_tasks(planogram, VerificationTask, MobileHandoff, Repo)
-    end)
-
-    :ok
-  end
-
   defp seed_system_prompts do
     Showcase.Common.SystemPromptSeeder.upsert(
       "planogram",
@@ -217,61 +206,5 @@ defmodule Showcase.Planogram.Seed do
     upload_dir = "priv/static/uploads/planogram"
     File.rm_rf!(upload_dir)
     File.mkdir_p!(upload_dir)
-  end
-
-  defp upsert_planogram(planogram_mod, repo) do
-    case repo.get_by(planogram_mod, name: "3-shelf snack display") do
-      nil ->
-        {:ok, pg} =
-          repo.insert(struct(planogram_mod, %{
-            name: "3-shelf snack display",
-            description: "Standard 3-shelf endcap for soft drinks. Top: Coca-Cola. Middle: Sprite + Fanta. Bottom: Pepsi.",
-            reference_image_path: "/images/planogram/reference_3-shelf-snacks.png",
-            expected_rows: %{
-              "rows" => [
-                %{"name" => "Top shelf", "position" => 1,
-                  "products" => [%{"sku" => "S1", "name" => "Coca-Cola 500ml", "qty" => 6}]},
-                %{"name" => "Middle shelf", "position" => 2,
-                  "products" => [
-                    %{"sku" => "S2", "name" => "Sprite 500ml", "qty" => 5},
-                    %{"sku" => "S3", "name" => "Fanta 500ml", "qty" => 4}
-                  ]},
-                %{"name" => "Bottom shelf", "position" => 3,
-                  "products" => [%{"sku" => "S4", "name" => "Pepsi 500ml", "qty" => 6}]}
-              ]
-            }
-          }))
-
-        pg
-
-      existing ->
-        existing
-    end
-  end
-
-  defp upsert_tasks(planogram, task_mod, handoff_mod, repo) do
-    today = Date.utc_today()
-
-    [
-      %{store_name: "Downtown Mart", scenario: "compliant", due_date: today},
-      %{store_name: "Westside Express", scenario: "minor_issues", due_date: Date.add(today, 1)},
-      %{store_name: "Eastpark Grocery", scenario: "major_issues", due_date: Date.add(today, -2)}
-    ]
-    |> Enum.each(fn task_attrs ->
-      case repo.get_by(task_mod, store_name: task_attrs.store_name, planogram_id: planogram.id) do
-        nil ->
-          repo.insert!(struct(task_mod, %{
-            planogram_id: planogram.id,
-            store_name: task_attrs.store_name,
-            due_date: task_attrs.due_date,
-            scenario: task_attrs.scenario,
-            mobile_token: handoff_mod.generate_token(),
-            status: "pending"
-          }))
-
-        _existing ->
-          :ok
-      end
-    end)
   end
 end

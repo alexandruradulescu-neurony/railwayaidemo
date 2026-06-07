@@ -15,12 +15,11 @@ defmodule Showcase.Planogram.MockPrompts do
   """
 
   alias Showcase.Common.AnthropicClient.Mock
+  alias Showcase.Common.AnthropicClient.Types.{Response, Usage}
   alias Showcase.Planogram.Impl.VisionRequest
 
   @spec register_all() :: :ok
   def register_all do
-    Mock.reset()
-
     for {scenario, text, usage} <- scenarios() do
       Mock.register(VisionRequest.fingerprint(),
         scenario: scenario,
@@ -33,6 +32,28 @@ defmodule Showcase.Planogram.MockPrompts do
 
     :ok
   end
+
+  @doc """
+  Look up a scripted response for a seeded scenario tag. Returns a
+  fully-formed `%Response{}` so the VisionPipeline can bypass the real
+  `AnthropicClient.call/1` entirely — predictable demo, no API tokens
+  burnt, no flake on real Claude variance.
+
+  Returns `:not_found` for any scenario not in the seeded set (e.g. a
+  task created live via the Manager view).
+  """
+  @spec scripted_response_for(String.t() | nil) :: {:ok, Response.t()} | :not_found
+  def scripted_response_for(scenario) when is_binary(scenario) do
+    case Enum.find(scenarios(), fn {s, _, _} -> s == scenario end) do
+      {_, text, usage} ->
+        {:ok, %Response{text: text, usage: struct(Usage, usage)}}
+
+      nil ->
+        :not_found
+    end
+  end
+
+  def scripted_response_for(_), do: :not_found
 
   defp scenarios do
     [

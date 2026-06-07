@@ -42,32 +42,4 @@ defmodule Showcase.Planogram.SeedTest do
     end
   end
 
-  describe "seed_test_fixtures/0 (opt-in for the test suite)" do
-    test "creates 1 planogram + 3 tasks with distinct scenarios" do
-      :ok = Seed.seed_test_fixtures()
-
-      planograms = Repo.all(Planogram)
-      assert length(planograms) >= 1
-
-      tasks = Repo.all(from t in VerificationTask, order_by: t.id)
-      assert length(tasks) == 3
-      scenarios = Enum.map(tasks, & &1.scenario) |> Enum.sort()
-      assert scenarios == ["compliant", "major_issues", "minor_issues"]
-
-      # Each task has a unique mobile_token
-      tokens = Enum.map(tasks, & &1.mobile_token)
-      assert length(Enum.uniq(tokens)) == 3
-
-      # One task has due_date in the past (for overdue demo)
-      today = Date.utc_today()
-      assert Enum.any?(tasks, &(Date.compare(&1.due_date, today) == :lt))
-    end
-
-    test "is idempotent" do
-      :ok = Seed.seed_test_fixtures()
-      first_count = Repo.aggregate(VerificationTask, :count)
-      :ok = Seed.seed_test_fixtures()
-      assert Repo.aggregate(VerificationTask, :count) == first_count
-    end
-  end
 end

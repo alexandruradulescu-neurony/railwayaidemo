@@ -382,10 +382,20 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   defp score_pill_classes(s) when is_number(s) and s >= 60, do: "bg-amber-100 text-amber-800"
   defp score_pill_classes(_), do: "bg-rose-100 text-rose-800"
 
+  # Build the public URL the mobile QR points at. Reads scheme/host/port
+  # from `Endpoint.config(:url)` first (set in runtime.exs when PHX_HOST is
+  # provided) and falls back to the HTTP transport's port for local dev.
+  # Omits the port for 80/443 so the QR encodes a clean URL on real domains.
   defp qr_url(task) do
-    host = ShowcaseWeb.Endpoint.config(:url)[:host] || "localhost"
-    port = (ShowcaseWeb.Endpoint.config(:http) || [])[:port] || 4321
-    "http://#{host}:#{port}/planogram/mobile/#{task.mobile_token}"
+    url_config = ShowcaseWeb.Endpoint.config(:url) || []
+    http_config = ShowcaseWeb.Endpoint.config(:http) || []
+
+    scheme = url_config[:scheme] || "http"
+    host = url_config[:host] || "localhost"
+    port = url_config[:port] || http_config[:port] || 4000
+
+    port_part = if port in [80, 443], do: "", else: ":#{port}"
+    "#{scheme}://#{host}#{port_part}/planogram/mobile/#{task.mobile_token}"
   end
 
   defp status_classes("pending"), do: "bg-surface-lav text-ink/80"
