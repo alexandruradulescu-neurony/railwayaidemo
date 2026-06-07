@@ -68,6 +68,42 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
       rendered = render(view)
       assert rendered =~ "3-shelf snack display"
       assert rendered =~ "Create task"
+      assert rendered =~ "Add planogram"
+    end
+
+    test "create_planogram inserts a new Planogram with uploaded reference", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/planogram")
+      view |> element("button", "Manager") |> render_click()
+
+      before_count = Showcase.Repo.aggregate(Showcase.Planogram.Planogram, :count)
+
+      png_bytes = <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0>>
+
+      photo =
+        file_input(view, "form[phx-submit='create_planogram']", :reference, [
+          %{
+            last_modified: 1_700_000_000_000,
+            name: "ref.png",
+            content: png_bytes,
+            type: "image/png"
+          }
+        ])
+
+      assert render_upload(photo, "ref.png") =~ "ref.png"
+
+      view
+      |> form("form[phx-submit='create_planogram']",
+        %{
+          "planogram" => %{
+            "name" => "Brand new shelf #{System.unique_integer([:positive])}",
+            "description" => "Test planogram via upload"
+          }
+        }
+      )
+      |> render_submit()
+
+      after_count = Showcase.Repo.aggregate(Showcase.Planogram.Planogram, :count)
+      assert after_count == before_count + 1
     end
 
     test "create_task inserts a new VerificationTask", %{conn: conn} do
