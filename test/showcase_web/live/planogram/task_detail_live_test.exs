@@ -76,6 +76,29 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
       assert html =~ "high"            # severity
       assert html =~ "out_of_stock"    # new categorized issue type
     end
+
+    test "renders stats sidebar (Mismatches Found, Price Tags Verified)", %{conn: conn} do
+      task = a_task("minor_issues") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "Compliance Score"
+      assert html =~ "Mismatches Found"
+      assert html =~ "Price Tags Verified"
+      assert html =~ "AI Analysis"
+    end
+
+    test "renders extracted price overlay badges with RON values", %{conn: conn} do
+      task = a_task("compliant") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "RON 15.99"
+      assert html =~ "Shelf compliance"
+    end
+
+    test "renders issue overlay badges with type labels", %{conn: conn} do
+      task = a_task("major_issues") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      # ResultRenderer.issue_badge/1 maps types → UPPERCASE labels
+      assert html =~ "OUT OF STOCK"
+    end
   end
 
   describe "partial result (force truncation)" do

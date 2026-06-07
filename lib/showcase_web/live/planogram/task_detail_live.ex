@@ -107,10 +107,18 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
   @impl true
   def render(assigns) do
+    main_width =
+      case assigns.task.status do
+        "complete" -> "max-w-7xl"
+        _ -> "max-w-5xl"
+      end
+
+    assigns = assign(assigns, :main_width, main_width)
+
     ~H"""
     <div class="min-h-screen bg-zinc-50">
       <header class="border-b border-zinc-200 bg-white">
-        <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div class={["mx-auto px-6 py-5 flex items-center justify-between", @main_width]}>
           <div>
             <h1 class="text-xl font-semibold"><%= @task.store_name %></h1>
             <p class="text-sm text-zinc-500 mt-1">
@@ -124,7 +132,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         </div>
       </header>
 
-      <main class="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <main class={["mx-auto px-6 py-6 space-y-6", @main_width]}>
         <%= case @task.status do %>
           <% s when s in ["pending"] -> %>
             <.pending_panel task={@task} uploads={@uploads} />
@@ -229,24 +237,123 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   attr :task, :map, required: true
 
   defp result_panel(assigns) do
+    max_row =
+      assigns.rendered.rows
+      |> Enum.map(& &1.position)
+      |> Enum.reject(&is_nil/1)
+      |> case do
+        [] -> 3
+        list -> Enum.max(list)
+      end
+
+    assigns = assign(assigns, :max_row, max_row)
+
     ~H"""
     <div :if={@rendered.partial?} class="rounded border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800">
       The AI response was truncated. Showing salvaged fields via ResilientJSONParser.
     </div>
 
-    <section class="rounded border bg-white p-5">
-      <div class="flex items-center gap-6">
-        <.compliance_gauge pct={@rendered.gauge_pct} />
-        <div class="flex-1">
-          <h2 class="text-lg font-medium">Executive summary</h2>
-          <p class="text-sm text-zinc-700 mt-1"><%= @rendered.executive_summary %></p>
-          <div class="mt-3 flex items-center gap-3">
-            <.cost_badge :if={@usage} usage={@usage} />
-            <span class="text-xs text-zinc-400">photo quality: <%= @rendered.photo_quality.score || "?" %></span>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <%!-- Left/main column: shelf photo with overlay tags --%>
+      <section class="rounded border bg-white p-5 lg:col-span-2">
+        <h2 class="text-lg font-medium mb-3">Shelf compliance</h2>
+        <div class="relative rounded overflow-hidden bg-zinc-100">
+          <img
+            :if={@task.photo_path}
+            src={@task.photo_path}
+            alt="Audited shelf"
+            class="w-full h-auto block"
+          />
+          <div
+            :if={!@task.photo_path}
+            class="aspect-[4/3] flex items-center justify-center text-sm text-zinc-400"
+          >
+            (no photo — bundled scenario was used)
+          </div>
+
+          <%!-- Overlay tags for issues + extracted prices --%>
+          <span
+            :for={iss <- @rendered.issues}
+            class={[
+              "absolute -translate-x-1/2 -translate-y-1/2",
+              "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+              "shadow-md whitespace-nowrap",
+              issue_badge_classes(iss.type)
+            ]}
+            style={overlay_style(iss.row, iss.horizontal_position, @max_row)}
+            title={iss.description}
+          >
+            {iss.badge}
+          </span>
+
+          <span
+            :for={price <- @rendered.extracted_prices}
+            class={[
+              "absolute -translate-x-1/2 -translate-y-1/2",
+              "rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold",
+              "shadow-md whitespace-nowrap"
+            ]}
+            style={overlay_style(price.row, price.horizontal_position, @max_row)}
+          >
+            {price.text} ✓
+          </span>
+        </div>
+
+        <p class="text-sm text-zinc-700 mt-4">{@rendered.executive_summary}</p>
+      </section>
+
+      <%!-- Right column: stats sidebar --%>
+      <section class="space-y-4">
+        <div class="rounded border bg-white p-5 text-center">
+          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-2">
+            Compliance Score
+          </div>
+          <.compliance_gauge pct={@rendered.gauge_pct} />
+        </div>
+
+        <div class="rounded border bg-white p-4 flex items-center gap-3">
+          <span class="rounded-full bg-rose-100 text-rose-600 p-2">
+            <.icon name="hero-x-circle" class="size-5" />
+          </span>
+          <div class="flex-1">
+            <div class="text-xs uppercase tracking-wide text-zinc-500">Mismatches Found</div>
+            <div class="text-2xl font-semibold">{@rendered.mismatches_count}</div>
           </div>
         </div>
-      </div>
-    </section>
+
+        <div class="rounded border bg-white p-4 flex items-center gap-3">
+          <span class="rounded-full bg-blue-100 text-blue-600 p-2">
+            <.icon name="hero-currency-dollar" class="size-5" />
+          </span>
+          <div class="flex-1">
+            <div class="text-xs uppercase tracking-wide text-zinc-500">Price Tags Verified</div>
+            <div class="text-2xl font-semibold">{@rendered.prices_count}</div>
+          </div>
+        </div>
+
+        <div :if={@rendered.out_of_stock_count > 0} class="rounded border bg-white p-4 flex items-center gap-3">
+          <span class="rounded-full bg-amber-100 text-amber-600 p-2">
+            <.icon name="hero-exclamation-triangle" class="size-5" />
+          </span>
+          <div class="flex-1">
+            <div class="text-xs uppercase tracking-wide text-zinc-500">Out of Stock</div>
+            <div class="text-2xl font-semibold">{@rendered.out_of_stock_count}</div>
+          </div>
+        </div>
+
+        <div class="rounded border bg-emerald-50 border-emerald-200 px-4 py-3 flex items-center gap-2 text-sm text-emerald-800">
+          <.icon name="hero-check-circle" class="size-5" />
+          <span class="font-medium">AI Analysis: Complete</span>
+        </div>
+
+        <div class="flex items-center gap-2 px-1">
+          <.cost_badge :if={@usage} usage={@usage} />
+          <span class="text-xs text-zinc-400">
+            photo quality: {@rendered.photo_quality.score || "?"}
+          </span>
+        </div>
+      </section>
+    </div>
 
     <section :if={@rendered.rows != []} class="rounded border bg-white p-5">
       <h2 class="text-lg font-medium mb-3">Per-row breakdown</h2>
@@ -254,17 +361,19 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
     </section>
 
     <section :if={@rendered.issues != []} class="rounded border bg-white p-5">
-      <h2 class="text-lg font-medium mb-3">Issues (<%= length(@rendered.issues) %>)</h2>
+      <h2 class="text-lg font-medium mb-3">Issues ({length(@rendered.issues)})</h2>
       <ul class="space-y-3">
         <li :for={iss <- @rendered.issues} class="flex gap-3 items-start">
-          <span class={["rounded px-2 py-0.5 text-xs uppercase tracking-wide",
-                        "bg-#{iss.severity_color}-100 text-#{iss.severity_color}-700"]}>
-            <%= iss.severity %>
+          <span class={[
+            "rounded px-2 py-0.5 text-xs uppercase tracking-wide",
+            severity_badge_classes(iss.severity_color)
+          ]}>
+            {iss.severity}
           </span>
           <div class="flex-1">
-            <div class="font-medium"><%= iss.type %></div>
-            <div class="text-sm text-zinc-700"><%= iss.description %></div>
-            <div class="text-xs text-zinc-500 mt-1">Impact: <%= iss.business_impact %></div>
+            <div class="font-medium">{iss.type}</div>
+            <div class="text-sm text-zinc-700">{iss.description}</div>
+            <div class="text-xs text-zinc-500 mt-1">Impact: {iss.business_impact}</div>
           </div>
         </li>
       </ul>
@@ -273,13 +382,55 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
     <section :if={@rendered.suggestions != []} class="rounded border bg-white p-5">
       <h2 class="text-lg font-medium mb-3">Suggested actions</h2>
       <ul class="list-disc list-inside text-sm text-zinc-700 space-y-1">
-        <li :for={s <- @rendered.suggestions}><%= s %></li>
+        <li :for={s <- @rendered.suggestions}>{s}</li>
       </ul>
     </section>
 
     <.json_inspector data={@raw} />
     """
   end
+
+  # ── Overlay positioning ────────────────────────────────────────────────
+
+  # Given a 1-based row index, a horizontal position keyword, and the max row,
+  # produce inline `top`/`left` percentages. Rows are distributed evenly down
+  # the photo; horizontal positions left/center/right map to 18/50/82%.
+  defp overlay_style(row, horizontal_position, max_row) do
+    rows = max(max_row, 1)
+
+    row =
+      case row do
+        n when is_integer(n) and n >= 1 and n <= rows -> n
+        _ -> 1
+      end
+
+    top_pct = round((row - 0.5) / rows * 100)
+
+    left_pct =
+      case horizontal_position do
+        "left" -> 18
+        "right" -> 82
+        _ -> 50
+      end
+
+    "top: #{top_pct}%; left: #{left_pct}%;"
+  end
+
+  # Issue badge color classes — literal strings so Tailwind 4 can scan them.
+  defp issue_badge_classes("missing_product"), do: "bg-rose-600 text-white"
+  defp issue_badge_classes("wrong_placement"), do: "bg-amber-500 text-white"
+  defp issue_badge_classes("wrong_qty"), do: "bg-amber-500 text-white"
+  defp issue_badge_classes("out_of_stock"), do: "bg-orange-600 text-white"
+  defp issue_badge_classes("unauthorized_item"), do: "bg-rose-600 text-white"
+  defp issue_badge_classes("photo_quality"), do: "bg-zinc-600 text-white"
+  defp issue_badge_classes("mismatch"), do: "bg-rose-600 text-white"
+  defp issue_badge_classes(_), do: "bg-zinc-600 text-white"
+
+  # Severity badge classes — literal strings.
+  defp severity_badge_classes("rose"), do: "bg-rose-100 text-rose-700"
+  defp severity_badge_classes("amber"), do: "bg-amber-100 text-amber-700"
+  defp severity_badge_classes("emerald"), do: "bg-emerald-100 text-emerald-700"
+  defp severity_badge_classes(_), do: "bg-zinc-100 text-zinc-700"
 
   defp status_classes("pending"), do: "bg-zinc-100 text-zinc-700"
   defp status_classes("analyzing"), do: "bg-blue-100 text-blue-700"
