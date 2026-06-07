@@ -43,4 +43,6 @@ npm-debug.log
 
 # Mobile-handoff photo uploads (Planogram). Wiped on reset.
 /priv/static/uploads/
+# Manager-uploaded reference planograms (Planogram). User-supplied at runtime.
+/priv/static/images/planogram/refs/
 .DS_Store
