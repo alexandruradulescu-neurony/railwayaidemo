@@ -118,8 +118,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
           "task" => %{
             "store_name" => "New Test Store",
             "due_date" => Date.to_iso8601(Date.utc_today()),
-            "planogram_id" => first_planogram_id(),
-            "scenario" => "compliant"
+            "planogram_id" => first_planogram_id()
           }
         })
       |> render_submit()

@@ -7,18 +7,28 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   alias Showcase.Planogram.{Seed, MockPrompts, VerificationTask, Worker}
   alias Showcase.Repo
 
+  @test_photo "/uploads/planogram/test-shelf.png"
+
   setup do
     Seed.seed()
     MockPrompts.register_all()
+
+    # Worker requires a real photo on disk — no more bundled fallback.
+    File.mkdir_p!("priv/static/uploads/planogram")
+    File.write!(
+      "priv/static" <> @test_photo,
+      <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0>>
+    )
+
     :ok
   end
 
   describe "pending task" do
-    test "shows the planogram name + Run analysis button", %{conn: conn} do
+    test "shows the planogram name + Upload & analyze button", %{conn: conn} do
       task = a_task("compliant")
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
       assert html =~ "Downtown Mart"
-      assert html =~ "Run analysis"
+      assert html =~ "Upload &amp; analyze"
       assert html =~ "pending"
     end
 
@@ -113,6 +123,12 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
       )
 
       task = a_task("compliant")
+
+      {:ok, task} =
+        task
+        |> VerificationTask.changeset(%{photo_path: @test_photo})
+        |> Repo.update()
+
       {:ok, _} = Planogram.enqueue_analysis(task.id, max_tokens: 200)
       [job] = all_enqueued()
       perform_job(Worker, job.args)
@@ -128,6 +144,11 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   end
 
   defp run_to_completion(task) do
+    {:ok, task} =
+      task
+      |> VerificationTask.changeset(%{photo_path: @test_photo})
+      |> Repo.update()
+
     {:ok, _} = Planogram.enqueue_analysis(task.id)
     [job] = all_enqueued()
     perform_job(Worker, job.args)
