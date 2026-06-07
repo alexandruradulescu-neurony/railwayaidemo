@@ -17,10 +17,10 @@ defmodule ShowcaseWeb.DashboardLiveTest do
     assert html =~ ~s(href="/order-flow")
   end
 
-  test "coming-soon tiles show 'Coming soon' badge", %{conn: conn} do
+  test "all 5 demo tiles are present on the dashboard", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert html =~ "Coming soon"
+    assert html =~ "OrderFlow"
     assert html =~ "RecruitFlow"
     assert html =~ "Planogram Manager"
     assert html =~ "Invoice Approval"
@@ -35,6 +35,6 @@ defmodule ShowcaseWeb.DashboardLiveTest do
     assert html =~ "5-state funnel"                   # RecruitFlow
     assert html =~ "Retail shelf compliance"          # Planogram
     assert html =~ "Three-way matching"               # Invoice
-    assert html =~ "restaurant photos"                # Restaurant Compliance
+    assert html =~ "mise-en-place"                    # Restaurant Compliance
   end
 end

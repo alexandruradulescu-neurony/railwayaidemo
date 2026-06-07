@@ -33,6 +33,9 @@ defmodule ShowcaseWeb.Router do
     live "/planogram", Planogram.PlanogramLive, :merchandiser
     live "/planogram/:id", Planogram.TaskDetailLive, :show
     live "/planogram/mobile/:token", Planogram.MobileCaptureLive, :capture
+    live "/restaurant-compliance", RestaurantCompliance.InspectionsLive, :index
+    live "/restaurant-compliance/rulesets", RestaurantCompliance.RulesetsLive, :manage
+    live "/restaurant-compliance/:id", RestaurantCompliance.InspectionDetailLive, :show
   end
 
   scope "/admin", ShowcaseWeb do

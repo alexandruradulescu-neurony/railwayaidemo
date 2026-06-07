@@ -54,11 +54,11 @@ defmodule Showcase.Dashboard.TileConfig do
       id: :restaurant_compliance,
       title: "Restaurant Compliance",
       description:
-        "Checklist-driven validation of actual restaurant photos against rules and reference images.",
-      roi_hook: "Catches non-conformance in minutes, not weekly visits.",
-      status: :coming_soon,
-      path: nil,
-      seeder: nil
+        "Rule-by-rule mise-en-place audits from 4-5 inspector photos. Pass/fail per rule, every violation tied to the photo that proves it.",
+      roi_hook: "Replaces an inspector's afternoon with ~5¢ per visit — and surfaces drift before the customer notices.",
+      status: :live,
+      path: "/restaurant-compliance",
+      seeder: Showcase.RestaurantCompliance.Seed
     }
   ]
 
