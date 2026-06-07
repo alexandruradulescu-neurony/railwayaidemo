@@ -373,10 +373,14 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           </div>
           <button
             type="submit"
-            class="rounded bg-neurony-600 px-3 py-2 text-sm font-medium text-white hover:bg-neurony-700"
+            disabled={@uploads.reference.entries == []}
+            class="w-full rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Save planogram
           </button>
+          <p :if={@uploads.reference.entries == []} class="text-xs text-zinc-500 mt-1">
+            Attach a reference image to enable save.
+          </p>
         </form>
       </section>
 

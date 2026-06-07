@@ -204,7 +204,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         <button
           type="submit"
           disabled={@uploads.shelf.entries == []}
-          class="rounded bg-neurony-600 px-3 py-2 text-sm font-medium text-white hover:bg-neurony-700 disabled:opacity-40"
+          class="rounded bg-purple px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
         >
           Upload photo
         </button>
