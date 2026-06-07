@@ -115,9 +115,20 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
 
   defp render_price(_), do: %{text: "", row: nil, horizontal_position: "center", bbox: nil}
 
+  # Claude Sonnet 4.5 has a systematic ~6-8% downward bias on bbox `y`
+  # coordinates for shelf photos. Even with explicit "y is top-left,
+  # not center" instructions in the system prompt, boxes consistently
+  # render 50-80px below the labeled element on a ~1000px-tall image.
+  # Compensate by pulling every box up by this constant at render time.
+  # If/when a future model gets the calibration right, drop this to 0.0.
+  @y_calibration_offset 0.06
+
   # Normalize a bbox map. Accepts string or atom keys, returns
   # %{x: float, y: float, w: float, h: float} clamped to [0, 1], or nil
   # if the input is missing/malformed/clearly bogus.
+  #
+  # Applies the Y calibration offset above before validation so the
+  # rejection rules see the corrected position.
   #
   # Rejects boxes that:
   #   * have nil/non-numeric fields
@@ -126,9 +137,11 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
   #   * extend wildly outside the frame (y + h > 1.1 or x + w > 1.1)
   defp normalize_bbox(b) when is_map(b) do
     x = fetch_float(b, "x")
-    y = fetch_float(b, "y")
+    raw_y = fetch_float(b, "y")
     w = fetch_float(b, "w")
     h = fetch_float(b, "h")
+
+    y = if is_number(raw_y), do: max(0.0, raw_y - @y_calibration_offset), else: raw_y
 
     cond do
       not Enum.all?([x, y, w, h], &is_number/1) ->
