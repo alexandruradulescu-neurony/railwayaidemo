@@ -10,8 +10,8 @@ defmodule ShowcaseWeb.Components.NeedsHumanBadge do
     ~H"""
     <span class={[
       "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium",
-      @decision.needs_review? && "bg-amber-100 text-amber-900 ring-1 ring-amber-300",
-      !@decision.needs_review? && "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300",
+      @decision.needs_review? && "bg-amber/15 text-ink ring-1 ring-amber/40",
+      !@decision.needs_review? && "bg-green/10 text-green ring-1 ring-green/30",
       @class
     ]}>
       <%= if @decision.needs_review? do %>

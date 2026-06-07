@@ -6,6 +6,10 @@
 @source "../js";
 @source "../../lib/showcase_web";
 
+/* Neurony brand tokens — source of truth lives in neurony-tokens.css.
+   Pulls in CSS variables AND the Google Fonts @import for Fira Sans + Montserrat. */
+@import "./neurony-tokens.css";
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
@@ -61,26 +65,27 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
+  /* Neurony brand — DaisyUI semantic overrides */
+  --color-base-100: oklch(100% 0 0);                /* white */
+  --color-base-200: oklch(97% 0.005 280);           /* surface-lav-2 #F4F5FA */
+  --color-base-300: oklch(86% 0.025 275);           /* line #D3D5EA */
+  --color-base-content: oklch(28% 0.04 285);        /* ink #2E2B41 */
+  --color-primary: oklch(64.5% 0.205 281);          /* purple #8A79FB */
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(28% 0.04 285);           /* ink */
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(64.5% 0.205 281);           /* purple */
   --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  --color-neutral: oklch(28% 0.04 285);             /* ink */
+  --color-neutral-content: oklch(100% 0 0);
+  --color-info: oklch(78% 0.12 234);                /* cyan #63C1FF */
+  --color-info-content: oklch(28% 0.04 285);
+  --color-success: oklch(72% 0.21 144);             /* green #19C332 */
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(82% 0.17 73);              /* amber #FEBC2E */
+  --color-warning-content: oklch(28% 0.04 285);
+  --color-error: oklch(52% 0.246 27);               /* red #CD0503 */
+  --color-error-content: oklch(100% 0 0);
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
@@ -103,18 +108,31 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* ─────────────────────────────────────────────────────────────────────
-   Neurony brand palette (placeholder — indigo/violet range).
-   Replace with the official Neurony deck values once available.
-   Exposed via Tailwind 4 `@theme` so utilities like `bg-neurony-600`
-   and `text-neurony-700` resolve automatically.
+   Neurony brand — Tailwind 4 utilities backed by neurony-tokens.css.
+   Adds: bg-purple, bg-purple-soft, bg-ink, bg-ink-deep, bg-surface-lav,
+         bg-surface-lav-2, bg-line, bg-green, bg-amber, bg-red, bg-cyan, bg-teal
+         and their text-* / border-* counterparts, plus font-heading / font-body.
    ───────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-neurony-50:  oklch(0.97 0.02 270);
-  --color-neurony-100: oklch(0.93 0.04 270);
-  --color-neurony-500: oklch(0.55 0.20 270);
-  --color-neurony-600: oklch(0.48 0.22 270);
-  --color-neurony-700: oklch(0.40 0.20 270);
-  --color-neurony-900: oklch(0.20 0.12 270);
+  /* Brand */
+  --color-purple:        #8A79FB;
+  --color-purple-stroke: #9747FF;
+  --color-purple-soft:   #D062FF;
+  --color-ink:           #2E2B41;
+  --color-ink-deep:      #281A4C;
+  --color-body-on-dark:  #E6E7F3;
+  --color-line:          #D3D5EA;
+  --color-surface-lav:   #EEEEFF;
+  --color-surface-lav-2: #F4F5FA;
+  --color-cyan:          #63C1FF;
+  --color-teal:          #0FB4CA;
+  --color-green:         #19C332;
+  --color-amber:         #FEBC2E;
+  --color-red:           #CD0503;
+
+  /* Type families */
+  --font-heading: "Fira Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body:    "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* This file is for your main application CSS */
