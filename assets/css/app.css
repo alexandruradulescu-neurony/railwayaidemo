@@ -161,3 +161,24 @@ input[type="file"]::file-selector-button:hover {
 input[type="file"].hidden {
   display: none;
 }
+
+/* Make <select> elements match the visual rhythm of <input> + <textarea>.
+   Tailwind 4 + daisyUI leave native browser styling on selects (raised
+   gradient, system chevron, different height) so they break the form
+   grid alignment. Reset + repaint with a Neurony-styled chevron. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%232E2B41' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.25rem;
+  line-height: 1.5;
+}
+select:disabled {
+  background-color: rgb(244, 245, 250);
+  cursor: not-allowed;
+}
