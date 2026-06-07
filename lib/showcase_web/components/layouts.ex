@@ -95,5 +95,4 @@ defmodule ShowcaseWeb.Layouts do
     </div>
     """
   end
-
 end
