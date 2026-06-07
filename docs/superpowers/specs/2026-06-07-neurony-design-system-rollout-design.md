@@ -100,22 +100,17 @@ Replaces the placeholder `@theme` block at lines 105–118.
 
 The old placeholder `neurony-*` block is removed — `bg-neurony-600` in `dashboard_live.ex` migrates to `bg-purple` in step §4.3.
 
-### 3.3 Font loading (`lib/showcase_web/components/layouts/root.html.heex`)
+### 3.3 Font loading (via `app.css` only — Phoenix constraint)
 
-Added to `<head>` before the `app.css` `<link>`:
+Phoenix 1.8 forbids external `<link>`/`<script>` references in layout templates (`AGENTS.md` §"JS and CSS guidelines": *"You cannot reference an external vendor'd script src or link href in the layouts… You must import the vendor deps into app.js and app.css to use them"*).
 
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
-  rel="stylesheet"
-/>
-```
+So fonts load through CSS only:
 
-Body class on `<body>`: `font-body text-ink bg-white antialiased`.
+- `neurony-tokens.css` already contains `@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap');` at the bottom.
+- `app.css` imports `neurony-tokens.css` near the top, which transitively pulls in the Google Fonts stylesheet.
+- No changes needed in `root.html.heex` for font loading. The font CSS `@import` is render-blocking (Tailwind 4 emits it as-is), but acceptable for a demo tool.
 
-The `@import url(...)` at the bottom of `tokens.css` is redundant once the `<link>` is in `<head>` — fonts are already requested by the time the imported `@import` resolves. Stripping it is tracked as a follow-up (§9).
+Body class on `<body>` in `root.html.heex` is still updated: `font-body text-ink bg-white antialiased`.
 
 ## 4. Component & layout changes
 
@@ -246,7 +241,7 @@ Single feature branch `claude/charming-jepsen-960dad`. No DB or schema changes, 
 - Per-page restyling of demo internals (OrderFlow, RecruitFlow, Planogram, Invoice Approval, Restaurant Compliance, admin pages beyond shared components).
 - Brand imagery integration (`hero-background.png`, `fde-portrait.png`, `problem-media.png`, `role-media.png`, `presentation-thumbnail.png`, `step-icon.png`).
 - Dark theme — already pinned to light per commit `e9aec33`.
-- Stripping the redundant `@import` inside `neurony-tokens.css`.
+- Self-hosting Google Fonts (current load is via the `@import url(...)` inside `neurony-tokens.css`).
 - Migrating `core_components.ex` away from Phoenix defaults.
 
 Each can be picked up as a separate spec when the time comes.
