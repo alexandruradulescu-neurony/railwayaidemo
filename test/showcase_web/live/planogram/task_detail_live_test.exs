@@ -21,6 +21,40 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
       assert html =~ "Run analysis"
       assert html =~ "pending"
     end
+
+    test "shows reference planogram image + shelf upload form", %{conn: conn} do
+      task = a_task("compliant") |> Repo.preload(:planogram)
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "Reference planogram"
+      assert html =~ "Upload shelf photo"
+      assert html =~ task.planogram.reference_image_path
+    end
+
+    test "uploading a shelf photo updates the task's photo_path", %{conn: conn} do
+      task = a_task("compliant")
+      {:ok, view, _html} = live(conn, "/planogram/#{task.id}")
+
+      png_bytes = <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0>>
+
+      photo =
+        file_input(view, "form[phx-submit='upload_shelf']", :shelf, [
+          %{
+            last_modified: 1_700_000_000_000,
+            name: "shelf.png",
+            content: png_bytes,
+            type: "image/png"
+          }
+        ])
+
+      assert render_upload(photo, "shelf.png") =~ "shelf.png"
+
+      view
+      |> form("form[phx-submit='upload_shelf']")
+      |> render_submit()
+
+      updated = Repo.get!(VerificationTask, task.id)
+      assert updated.photo_path =~ "/uploads/planogram/"
+    end
   end
 
   describe "complete task" do

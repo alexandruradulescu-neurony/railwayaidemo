@@ -34,7 +34,16 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       Phoenix.PubSub.subscribe(Showcase.PubSub, Showcase.Planogram.VisionPipeline.topic(task.id))
     end
 
-    {:ok, assign_task(socket, task)}
+    socket =
+      socket
+      |> allow_upload(:shelf,
+        accept: ~w(.png .jpg .jpeg),
+        max_entries: 1,
+        max_file_size: 8_000_000
+      )
+      |> assign_task(task)
+
+    {:ok, socket}
   end
 
   defp assign_task(socket, task) do
@@ -57,6 +66,34 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   def handle_event("run_analysis", _, socket) do
     Planogram.enqueue_analysis(socket.assigns.task.id)
     {:noreply, put_flash(socket, :info, "Analysis enqueued.")}
+  end
+
+  def handle_event("validate_shelf", _params, socket), do: {:noreply, socket}
+
+  def handle_event("upload_shelf", _params, socket) do
+    uploaded =
+      consume_uploaded_entries(socket, :shelf, fn %{path: tmp}, _entry ->
+        {:ok, File.read!(tmp)}
+      end)
+
+    case uploaded do
+      [bytes] ->
+        case Planogram.save_shelf_photo(socket.assigns.task, bytes) do
+          {:ok, updated} ->
+            updated = Planogram.get_task!(updated.id)
+
+            {:noreply,
+             socket
+             |> put_flash(:info, "Shelf photo uploaded.")
+             |> assign_task(updated)}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not save shelf photo.")}
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "No photo received.")}
+    end
   end
 
   @impl true
@@ -90,11 +127,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       <main class="max-w-5xl mx-auto px-6 py-6 space-y-6">
         <%= case @task.status do %>
           <% s when s in ["pending"] -> %>
-            <.empty_state />
-            <button phx-click="run_analysis"
-                    class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-              Run analysis
-            </button>
+            <.pending_panel task={@task} uploads={@uploads} />
 
           <% "analyzing" -> %>
             <div class="rounded border bg-blue-50 px-4 py-3 text-sm text-blue-800">
@@ -107,24 +140,93 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             </div>
 
           <% "complete" -> %>
-            <.result_panel rendered={@rendered} usage={@usage} raw={@task.result} />
+            <.result_panel rendered={@rendered} usage={@usage} raw={@task.result} task={@task} />
         <% end %>
       </main>
     </div>
     """
   end
 
-  defp empty_state(assigns) do
+  attr :task, :map, required: true
+  attr :uploads, :map, required: true
+
+  defp pending_panel(assigns) do
     ~H"""
-    <div class="rounded border bg-white p-6 text-center text-sm text-zinc-500">
-      No result yet. Capture a photo (or use the bundled scenario) and run analysis.
+    <section class="rounded border bg-white p-5 space-y-4">
+      <h2 class="text-lg font-medium">Reference planogram</h2>
+      <img
+        :if={@task.planogram.reference_image_path}
+        src={@task.planogram.reference_image_path}
+        alt={@task.planogram.name}
+        class="w-full max-h-72 object-contain rounded border bg-zinc-50"
+      />
+      <p class="text-xs text-zinc-500">{@task.planogram.description}</p>
+    </section>
+
+    <section :if={@task.photo_path} class="rounded border bg-white p-5 space-y-3">
+      <h2 class="text-lg font-medium">Shelf photo</h2>
+      <img
+        src={@task.photo_path}
+        alt="Captured shelf"
+        class="w-full max-h-72 object-contain rounded border bg-zinc-50"
+      />
+    </section>
+
+    <section :if={!@task.photo_path} class="rounded border bg-white p-5 space-y-3">
+      <h2 class="text-lg font-medium">Upload shelf photo</h2>
+      <p class="text-sm text-zinc-500">
+        Pick a photo from your computer, or use the
+        <a class="underline" href={"/planogram/mobile/#{@task.mobile_token}"}>mobile capture link</a>.
+      </p>
+
+      <form phx-submit="upload_shelf" phx-change="validate_shelf" class="space-y-3">
+        <.live_file_input upload={@uploads.shelf} class="block w-full text-sm" />
+        <div
+          :for={entry <- @uploads.shelf.entries}
+          class="text-xs text-zinc-600"
+        >
+          {entry.client_name} — {entry.progress}%
+          <div
+            :for={err <- upload_errors(@uploads.shelf, entry)}
+            class="text-rose-600"
+          >
+            {upload_error_to_string(err)}
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={@uploads.shelf.entries == []}
+          class="rounded bg-neurony-600 px-3 py-2 text-sm font-medium text-white hover:bg-neurony-700 disabled:opacity-40"
+        >
+          Upload photo
+        </button>
+      </form>
+    </section>
+
+    <div class="flex items-center gap-3">
+      <button
+        phx-click="run_analysis"
+        class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+      >
+        Run analysis
+      </button>
+      <span :if={!@task.photo_path} class="text-xs text-zinc-500">
+        No photo uploaded — the bundled <code class="font-mono">{@task.scenario}</code>
+        scenario will be used.
+      </span>
     </div>
     """
   end
 
+  defp upload_error_to_string(:too_large), do: "Photo too large (max 8 MB)."
+  defp upload_error_to_string(:not_accepted), do: "Unsupported file (.png, .jpg)."
+  defp upload_error_to_string(:too_many_files), do: "One file at a time."
+  defp upload_error_to_string(_), do: "Upload error."
+
   attr :rendered, :map, required: true
   attr :usage, :any, required: true
   attr :raw, :map, required: true
+  attr :task, :map, required: true
 
   defp result_panel(assigns) do
     ~H"""
