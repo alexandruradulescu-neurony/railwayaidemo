@@ -202,9 +202,18 @@ defmodule Showcase.Planogram.Seed do
     )
   end
 
-  defp clear_uploads do
-    upload_dir = "priv/static/uploads/planogram"
-    File.rm_rf!(upload_dir)
-    File.mkdir_p!(upload_dir)
+  # The filesystem is shared between :dev and :test (DB sandbox isolates
+  # only the database). Running test seeds wiped the dev uploads dir,
+  # leaving DB rows with broken photo_path values. Skip the wipe in test.
+  # Mix.env() is resolved at COMPILE time so the test-env build never
+  # carries the rm_rf call.
+  if Mix.env() == :test do
+    defp clear_uploads, do: :ok
+  else
+    defp clear_uploads do
+      upload_dir = "priv/static/uploads/planogram"
+      File.rm_rf!(upload_dir)
+      File.mkdir_p!(upload_dir)
+    end
   end
 end
