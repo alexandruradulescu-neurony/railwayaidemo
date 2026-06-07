@@ -7,7 +7,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
   alias Showcase.Planogram.{Seed, MockPrompts}
 
   setup do
-    Seed.seed(); Seed.seed_test_fixtures()
+    Seed.seed_test_fixtures()
     MockPrompts.register_all()
     :ok
   end

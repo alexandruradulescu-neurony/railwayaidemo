@@ -24,17 +24,21 @@ defmodule Showcase.Planogram.SeedTest do
     end
   end
 
-  describe "seed/0 (demo-clean baseline)" do
-    test "creates NO planograms or tasks — operator builds them live" do
+  describe "seed/0 (demo baseline)" do
+    test "creates 2 reference planograms (pharmacy + juices) + 5 tasks" do
       :ok = Seed.seed()
-      assert Repo.aggregate(Planogram, :count) == 0
-      assert Repo.aggregate(VerificationTask, :count) == 0
+      assert Repo.aggregate(Planogram, :count) == 2
+      assert Repo.aggregate(VerificationTask, :count) == 5
+
+      names = Repo.all(Planogram) |> Enum.map(& &1.name) |> Enum.sort()
+      assert names == ["Natural juices aisle", "Pharmacy OTC end-cap"]
     end
 
     test "is idempotent" do
       :ok = Seed.seed()
       :ok = Seed.seed()
-      assert Repo.aggregate(Planogram, :count) == 0
+      assert Repo.aggregate(Planogram, :count) == 2
+      assert Repo.aggregate(VerificationTask, :count) == 5
     end
   end
 

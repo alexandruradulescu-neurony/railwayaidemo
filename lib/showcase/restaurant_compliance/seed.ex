@@ -14,10 +14,18 @@ defmodule Showcase.RestaurantCompliance.Seed do
 
   @behaviour Showcase.Common.DemoSeeder
 
-  alias Showcase.RestaurantCompliance.{Ruleset, Impl.VisionRequest}
+  alias Showcase.RestaurantCompliance.{Inspection, Ruleset, Impl.VisionRequest}
   alias Showcase.Repo
 
   @ruleset_name "Mise-en-place standards"
+
+  # 3 believable Bucharest restaurants, each waiting on inspector photos.
+  # The AE uploads the actual restaurant photos at demo time.
+  @inspections [
+    %{restaurant_name: "Caru' cu Bere", inspector_name: "Andrei Popescu"},
+    %{restaurant_name: "Hanu' lui Manuc", inspector_name: "Maria Ionescu"},
+    %{restaurant_name: "Bistro Ateneu", inspector_name: "Stefan Radu"}
+  ]
 
   @impl true
   def name, do: "Restaurant Compliance"
@@ -38,12 +46,36 @@ defmodule Showcase.RestaurantCompliance.Seed do
     clear_uploads()
 
     Repo.transaction(fn ->
-      upsert_ruleset()
+      ruleset = upsert_ruleset()
+      upsert_inspections(ruleset)
     end)
 
     seed_system_prompts()
 
     :ok
+  end
+
+  defp upsert_inspections(ruleset) do
+    today = Date.utc_today()
+
+    Enum.each(@inspections, fn attrs ->
+      case Repo.get_by(Inspection, restaurant_name: attrs.restaurant_name) do
+        nil ->
+          Repo.insert!(%Inspection{
+            ruleset_id: ruleset.id,
+            restaurant_name: attrs.restaurant_name,
+            inspector_name: attrs.inspector_name,
+            due_date: today,
+            status: "pending",
+            photo_paths: %{"paths" => []},
+            result: %{},
+            usage: %{}
+          })
+
+        _existing ->
+          :ok
+      end
+    end)
   end
 
   defp seed_system_prompts do
