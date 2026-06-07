@@ -70,37 +70,24 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
     |> Repo.update()
   end
 
-  # Seeded scenarios (compliant / mixed / non_compliant) bypass the real
-  # `AnthropicClient.call/1` ONLY when the configured impl is `Live`
-  # (operator running with `ANTHROPIC_API_KEY`). When the impl is `Mock`
-  # (tests + dev), the Mock serves the same scripted responses via
-  # `MockPrompts.register_all/0` AND tests can override per-fingerprint
-  # via `Mock.register/2`. See REVIEW.md HI-01.
+  # Always call the configured AnthropicClient. The previous "bypass for
+  # seeded scenarios" (HI-01) was wrong for vision demos: it returned the
+  # canned JSON for any inspection tagged with a seeded scenario name,
+  # even when the operator had uploaded REAL restaurant photos — leading
+  # to fake rule evaluations and fake violations on the user's images.
   defp call_vision(inspection, photo_bytes_list, reference_bytes_list, scenario, max_tokens) do
-    cond do
-      live_impl?() and match?({:ok, _}, MockPrompts.scripted_response_for(scenario)) ->
-        {:ok, response} = MockPrompts.scripted_response_for(scenario)
-        {:ok, response, "mock"}
+    ruleset = %{
+      name: inspection.ruleset.name,
+      rules_text: inspection.ruleset.rules_text
+    }
 
-      true ->
-        ruleset = %{
-          name: inspection.ruleset.name,
-          rules_text: inspection.ruleset.rules_text
-        }
+    opts = [scenario: scenario, max_tokens: max_tokens]
+    request = VisionRequest.build(ruleset, photo_bytes_list, reference_bytes_list, opts)
 
-        opts = [scenario: scenario, max_tokens: max_tokens]
-        request = VisionRequest.build(ruleset, photo_bytes_list, reference_bytes_list, opts)
-
-        case AnthropicClient.call(request) do
-          {:ok, response} -> {:ok, response, "live"}
-          {:error, _} = err -> err
-        end
+    case AnthropicClient.call(request) do
+      {:ok, response} -> {:ok, response, "live"}
+      {:error, _} = err -> err
     end
-  end
-
-  defp live_impl? do
-    Application.get_env(:showcase, :anthropic_client_impl) ==
-      Showcase.Common.AnthropicClient.Live
   end
 
   defp parse_response(text) do

@@ -59,51 +59,29 @@ defmodule Showcase.Planogram.VisionPipeline do
     |> Repo.update()
   end
 
-  # Seeded scenarios (compliant / minor_issues / major_issues) bypass the
-  # real `AnthropicClient.call/1` entirely when the configured impl is
-  # `Live` (operator running with `ANTHROPIC_API_KEY`). Two reasons:
-  #
-  #   1. Predictable demo — the AE shows "click → magic" without burning
-  #      ~2¢ per click on real Claude tokens for canned shelf photos.
-  #   2. Determinism — real Claude variance won't drift the score or
-  #      surface a "partial" parse mid-pitch.
-  #
-  # When the impl is `Mock` (tests + dev with no API key), we go through
-  # `AnthropicClient.call/1` so per-test `Mock.register` overrides (e.g.
-  # the force-truncation test) still work. The Mock impl already serves
-  # the same scripted responses via `MockPrompts.register_all/0`.
-  #
-  # Tasks created live via the Manager view have a scenario tag the
-  # lookup doesn't recognize → falls through to real Claude either way.
-  # Mirrors the OrderFlow + Invoice Approval pattern (REVIEW.md HI-01).
+  # Always call the configured AnthropicClient. The previous "bypass for
+  # seeded scenarios" (HI-01) was wrong for Planogram: it returned the
+  # canned JSON for any task tagged `compliant`/`minor_issues`/`major_issues`
+  # — including ones where the operator had uploaded a real shelf photo.
+  # Result: fake scores and fake prices on real images. NEVER again.
+  # Cost trade-off: every analysis click is a real Sonnet vision call
+  # (~2-3¢). The boss is fine with that.
   defp call_vision(task, photo_bytes, reference_bytes, max_tokens) do
-    cond do
-      live_impl?() and match?({:ok, _}, MockPrompts.scripted_response_for(task.scenario)) ->
-        {:ok, response} = MockPrompts.scripted_response_for(task.scenario)
-        {:ok, response, "mock"}
+    planogram = %{
+      name: task.planogram.name,
+      expected_rows: task.planogram.expected_rows
+    }
 
-      true ->
-        planogram = %{
-          name: task.planogram.name,
-          expected_rows: task.planogram.expected_rows
-        }
+    opts =
+      [scenario: task.scenario, max_tokens: max_tokens]
+      |> maybe_put(:reference_bytes, reference_bytes)
 
-        opts =
-          [scenario: task.scenario, max_tokens: max_tokens]
-          |> maybe_put(:reference_bytes, reference_bytes)
+    request = VisionRequest.build(planogram, photo_bytes, opts)
 
-        request = VisionRequest.build(planogram, photo_bytes, opts)
-
-        case AnthropicClient.call(request) do
-          {:ok, response} -> {:ok, response, "live"}
-          {:error, _} = err -> err
-        end
+    case AnthropicClient.call(request) do
+      {:ok, response} -> {:ok, response, "live"}
+      {:error, _} = err -> err
     end
-  end
-
-  defp live_impl? do
-    Application.get_env(:showcase, :anthropic_client_impl) ==
-      Showcase.Common.AnthropicClient.Live
   end
 
   defp maybe_put(opts, _key, nil), do: opts
