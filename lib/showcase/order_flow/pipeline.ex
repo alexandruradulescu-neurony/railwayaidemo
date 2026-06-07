@@ -38,12 +38,16 @@ defmodule Showcase.OrderFlow.Pipeline do
     topic = "order_flow:processing:#{msg.id}"
 
     with {:ok, extracted} <- Extraction.extract(msg.body, scenario: msg.scenario),
+         # Fall back to the synthetic message's seeded client_hint when Claude
+         # can't infer one from the body (common for short / context-light
+         # messages like "200 hinges and 50 locks — same as last month").
+         effective_hint = extracted.client_hint || msg.client_hint,
          _ =
            broadcast(topic, :extracted, %{
-             client_hint: extracted.client_hint,
+             client_hint: effective_hint,
              line_count: length(extracted.lines)
            }),
-         {:ok, client} <- resolve_client(extracted.client_hint, topic) do
+         {:ok, client} <- resolve_client(effective_hint, topic) do
       matched_lines =
         Enum.map(extracted.lines, fn line ->
           context = %{repo: Repo, now: now, client_id: client.id}
