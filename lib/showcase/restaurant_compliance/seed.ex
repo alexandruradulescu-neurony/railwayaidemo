@@ -49,10 +49,16 @@ defmodule Showcase.RestaurantCompliance.Seed do
       ruleset = upsert_ruleset()
       upsert_inspections(ruleset)
     end)
+    |> case do
+      {:ok, _} ->
+        seed_system_prompts()
+        :ok
 
-    seed_system_prompts()
-
-    :ok
+      {:error, reason} ->
+        # Surface the failure so `Showcase.Common.Reset` can roll back the
+        # outer Multi instead of pretending the demo reset succeeded.
+        {:error, reason}
+    end
   end
 
   defp upsert_inspections(ruleset) do

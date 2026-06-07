@@ -225,7 +225,10 @@ defmodule ShowcaseWeb.InvoiceApproval.BundleDetailLive do
     try do
       String.to_existing_atom(s)
     rescue
-      ArgumentError -> String.to_atom(s)
+      # Never `String.to_atom/1` on Claude payloads — unbounded atom
+      # growth = VM crash. Unknown atoms map to `:red` downstream via the
+      # categorical fallback in ThresholdEvaluator.
+      ArgumentError -> :unknown
     end
   end
 

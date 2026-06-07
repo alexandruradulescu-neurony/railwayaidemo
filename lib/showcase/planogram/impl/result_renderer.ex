@@ -155,8 +155,12 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
 
   defp normalize_bbox(_), do: nil
 
+  # Callers always pass hardcoded string keys ("x", "y", "w", "h") AND the
+  # JSONB comes back from Postgres with string keys, so we only need string
+  # lookup here. The atom fallback was dead code + a footgun: any future
+  # caller with a dynamic `k` would have opened an atom-growth vector.
   defp fetch_float(m, k) do
-    case Map.get(m, k) || Map.get(m, String.to_atom(k)) do
+    case Map.get(m, k) do
       n when is_number(n) -> n / 1
       _ -> nil
     end

@@ -47,10 +47,14 @@ defmodule ShowcaseWeb.RestaurantCompliance.InspectionDetailLive do
     rendered = if inspection.result, do: ResultRenderer.render(inspection.result), else: nil
     usage = if inspection.usage, do: usage_struct(inspection.usage), else: nil
 
+    usage_source =
+      if inspection.usage, do: Map.get(inspection.usage, "source", "live"), else: "live"
+
     socket
     |> assign(:inspection, inspection)
     |> assign(:rendered, rendered)
     |> assign(:usage, usage)
+    |> assign(:usage_source, usage_source)
   end
 
   defp usage_struct(%{"input_tokens" => i, "output_tokens" => o, "cost_estimate_cents" => c}) do
@@ -199,6 +203,7 @@ defmodule ShowcaseWeb.RestaurantCompliance.InspectionDetailLive do
             <.result_panel
               rendered={@rendered}
               usage={@usage}
+              usage_source={@usage_source}
               inspection={@inspection}
               photo_paths={@photo_paths}
               ref_paths={@ref_paths}
@@ -293,6 +298,7 @@ defmodule ShowcaseWeb.RestaurantCompliance.InspectionDetailLive do
 
   attr :rendered, :map, required: true
   attr :usage, :any, required: true
+  attr :usage_source, :string, default: "live"
   attr :inspection, Inspection, required: true
   attr :photo_paths, :list, required: true
   attr :ref_paths, :list, required: true
@@ -345,7 +351,7 @@ defmodule ShowcaseWeb.RestaurantCompliance.InspectionDetailLive do
             +{@rendered.not_applicable_count} not applicable
           </div>
           <div class="flex items-center justify-center gap-2 pt-1">
-            <.cost_badge :if={@usage} usage={@usage} />
+            <.cost_badge :if={@usage} usage={@usage} source={@usage_source} />
           </div>
         </div>
       </div>

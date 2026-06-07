@@ -16,7 +16,7 @@ defmodule Showcase.Planogram.VisionPipeline do
   """
 
   alias Showcase.Common.{AnthropicClient, ResilientJSONParser}
-  alias Showcase.Planogram.{VerificationTask, Impl.VisionRequest}
+  alias Showcase.Planogram.{VerificationTask, Impl.VisionRequest, MockPrompts}
   alias Showcase.Repo
 
   require Logger
@@ -35,9 +35,10 @@ defmodule Showcase.Planogram.VisionPipeline do
     with :ok <- ensure_photo(photo_bytes),
          {:ok, task} <- mark_analyzing(task),
          _ <- broadcast(task.id, {:planogram, :task_analyzing, task.id}),
-         {:ok, raw_response} <- call_vision(task, photo_bytes, reference_bytes, max_tokens),
+         {:ok, raw_response, source} <-
+           call_vision(task, photo_bytes, reference_bytes, max_tokens),
          {:ok, decoded, partial?} <- parse_response(raw_response.text),
-         {:ok, task} <- mark_complete(task, decoded, raw_response.usage, partial?) do
+         {:ok, task} <- mark_complete(task, decoded, raw_response.usage, source, partial?) do
       broadcast(task.id, {:planogram, :task_complete, task.id})
       {:ok, task}
     else
@@ -58,19 +59,51 @@ defmodule Showcase.Planogram.VisionPipeline do
     |> Repo.update()
   end
 
+  # Seeded scenarios (compliant / minor_issues / major_issues) bypass the
+  # real `AnthropicClient.call/1` entirely when the configured impl is
+  # `Live` (operator running with `ANTHROPIC_API_KEY`). Two reasons:
+  #
+  #   1. Predictable demo — the AE shows "click → magic" without burning
+  #      ~2¢ per click on real Claude tokens for canned shelf photos.
+  #   2. Determinism — real Claude variance won't drift the score or
+  #      surface a "partial" parse mid-pitch.
+  #
+  # When the impl is `Mock` (tests + dev with no API key), we go through
+  # `AnthropicClient.call/1` so per-test `Mock.register` overrides (e.g.
+  # the force-truncation test) still work. The Mock impl already serves
+  # the same scripted responses via `MockPrompts.register_all/0`.
+  #
+  # Tasks created live via the Manager view have a scenario tag the
+  # lookup doesn't recognize → falls through to real Claude either way.
+  # Mirrors the OrderFlow + Invoice Approval pattern (REVIEW.md HI-01).
   defp call_vision(task, photo_bytes, reference_bytes, max_tokens) do
-    planogram = %{
-      name: task.planogram.name,
-      expected_rows: task.planogram.expected_rows
-    }
+    cond do
+      live_impl?() and match?({:ok, _}, MockPrompts.scripted_response_for(task.scenario)) ->
+        {:ok, response} = MockPrompts.scripted_response_for(task.scenario)
+        {:ok, response, "mock"}
 
-    opts =
-      [scenario: task.scenario, max_tokens: max_tokens]
-      |> maybe_put(:reference_bytes, reference_bytes)
+      true ->
+        planogram = %{
+          name: task.planogram.name,
+          expected_rows: task.planogram.expected_rows
+        }
 
-    request = VisionRequest.build(planogram, photo_bytes, opts)
+        opts =
+          [scenario: task.scenario, max_tokens: max_tokens]
+          |> maybe_put(:reference_bytes, reference_bytes)
 
-    AnthropicClient.call(request)
+        request = VisionRequest.build(planogram, photo_bytes, opts)
+
+        case AnthropicClient.call(request) do
+          {:ok, response} -> {:ok, response, "live"}
+          {:error, _} = err -> err
+        end
+    end
+  end
+
+  defp live_impl? do
+    Application.get_env(:showcase, :anthropic_client_impl) ==
+      Showcase.Common.AnthropicClient.Live
   end
 
   defp maybe_put(opts, _key, nil), do: opts
@@ -84,7 +117,10 @@ defmodule Showcase.Planogram.VisionPipeline do
     end
   end
 
-  defp mark_complete(task, decoded, usage, _partial?) do
+  # `source` is "mock" for scripted scenarios (free) or "live" for real
+  # Claude calls. The cost-badge UI uses it to render "(scripted)" or
+  # gray out cost when the run didn't actually cost anything.
+  defp mark_complete(task, decoded, usage, source, _partial?) do
     task
     |> VerificationTask.changeset(%{
       status: "complete",
@@ -92,7 +128,8 @@ defmodule Showcase.Planogram.VisionPipeline do
       usage: %{
         "input_tokens" => usage.input_tokens,
         "output_tokens" => usage.output_tokens,
-        "cost_estimate_cents" => usage.cost_estimate_cents
+        "cost_estimate_cents" => usage.cost_estimate_cents,
+        "source" => source
       }
     })
     |> Repo.update()

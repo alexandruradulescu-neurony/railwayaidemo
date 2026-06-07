@@ -59,11 +59,11 @@ All four live demos populate themselves on first run. **No manual seeding step n
 
 | Demo | Seeded data |
 |---|---|
-| **OrderFlow** | 6 clients (Meesenburg Romania / Alexandru Erdei / Dragos Manolache + 3 legacy generics for tests), **132 products** (Meesenburg feronerie K-series + AXOR profile + named hardware) + 47 global aliases (`balama → BAL-USA-MARO`, `manere → K1001-07-n03`, etc.) + 1 client-scoped alias on Beta Industries. **3 demo email scenarios** in Romanian: clean SKU order, informal Romanian (`balama`), and mixed SKU+informal. |
+| **OrderFlow** | 3 clients (Meesenburg Romania / Alexandru Erdei / Dragos Manolache), **130 products** (Meesenburg feronerie K-series + AXOR profile + named hardware) + 47 global aliases (`balama → BAL-USA-MARO`, `manere → K1001-07-n03`, etc.). **3 demo email scenarios** in Romanian: clean SKU order, informal Romanian (`balama`), and mixed SKU+informal. |
 | **Invoice Approval** | 3 clients (Meesenburg / Erdei / Manolache), 3 contracts (full Romanian "Contract de furnizare" with 17 articles + Anexa 1 line items), **4 pre-analyzed bundles**: `clean_match` → APPROVE · `price_drift` → NEEDS_HUMAN · `qty_mismatch` → REJECT · `out_of_contract` → REJECT. |
 | **Planogram Manager** | **2 reference planograms**: "Pharmacy OTC end-cap" (6 shelves, 23 SKUs) + "Natural juices aisle" (5 shelves, 10 SKUs). **5 pending verification tasks**: 3 pharmacy (Farmacia Tei Centru / Sensiblu Băneasa / Catena Plaza, scenarios compliant/minor/major) + 2 juices (Hypermarket Băneasa / Mega Image Centru, scenarios compliant/major). All due today. |
 | **Restaurant Compliance** | 1 ruleset ("Mise-en-place standards") with ~1000-char policy text + 2 reference image paths. **3 pending inspections** at recognizable Bucharest restaurants: Caru' cu Bere / Hanu' lui Manuc / Bistro Ateneu, each with a named inspector, all due today. |
-| **RecruitFlow** | Tile renders "Coming soon" on the dashboard, not clickable. Seed registers prompts in the background. |
+| **RecruitFlow** | Tile renders "Coming soon" on the dashboard, not clickable. Not seeded — `Dashboard.live_seeders/0` filters out non-live demos so no `rf_*` rows are inserted on Reset. |
 
 System prompts for every live demo are written to `common_system_prompts` so they're visible at `/admin/system-prompts`.
 

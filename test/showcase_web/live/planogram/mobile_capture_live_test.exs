@@ -6,7 +6,7 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLiveTest do
   alias Showcase.Repo
 
   setup do
-    Seed.seed_test_fixtures()
+    Seed.seed()
     :ok
   end
 
@@ -36,6 +36,8 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLiveTest do
   end
 
   defp first_pending_task do
-    Repo.get_by!(VerificationTask, scenario: "compliant")
+    # Prod seed has 2 "compliant" tasks (pharmacy + juices). Either works.
+    import Ecto.Query, only: [from: 2]
+    Repo.one!(from t in VerificationTask, where: t.scenario == "compliant", limit: 1)
   end
 end

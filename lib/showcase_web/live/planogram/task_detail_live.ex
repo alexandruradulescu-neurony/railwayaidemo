@@ -49,11 +49,13 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   defp assign_task(socket, task) do
     rendered = if task.result, do: ResultRenderer.render(task.result), else: nil
     usage = if task.usage, do: usage_struct(task.usage), else: nil
+    usage_source = if task.usage, do: Map.get(task.usage, "source", "live"), else: "live"
 
     socket
     |> assign(:task, task)
     |> assign(:rendered, rendered)
     |> assign(:usage, usage)
+    |> assign(:usage_source, usage_source)
   end
 
   defp usage_struct(%{"input_tokens" => i, "output_tokens" => o, "cost_estimate_cents" => c}) do
@@ -165,7 +167,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             </div>
 
           <% "complete" -> %>
-            <.result_panel rendered={@rendered} usage={@usage} raw={@task.result} task={@task} />
+            <.result_panel rendered={@rendered} usage={@usage} usage_source={@usage_source} raw={@task.result} task={@task} />
         <% end %>
       </main>
     </div>
@@ -252,6 +254,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
   attr :rendered, :map, required: true
   attr :usage, :any, required: true
+  attr :usage_source, :string, default: "live"
   attr :raw, :map, required: true
   attr :task, :map, required: true
 
@@ -399,7 +402,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         </div>
 
         <div class="flex items-center gap-2 px-1">
-          <.cost_badge :if={@usage} usage={@usage} />
+          <.cost_badge :if={@usage} usage={@usage} source={@usage_source} />
           <span class="text-xs text-ink/50">
             photo quality: {@rendered.photo_quality.score || "?"}
           </span>

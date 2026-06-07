@@ -34,20 +34,28 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
   @impl true
   def handle_event("validate", _params, socket), do: {:noreply, socket}
 
+  # The submit button is disabled in the template when entries == [], but
+  # LiveView events can be fired by anything holding the socket (DOM-injected
+  # click, JS console, second tab racing). Match defensively so the on-stage
+  # phone flow doesn't crash mid-pitch — see REVIEW.md BL-04.
   def handle_event("submit", _params, socket) do
-    [_entry | _] = socket.assigns.uploads.photo.entries
+    case socket.assigns.uploads.photo.entries do
+      [] ->
+        {:noreply, put_flash(socket, :error, "Pick a photo first.")}
 
-    consume_uploaded_entries(socket, :photo, fn %{path: tmp_path}, _entry ->
-      bytes = File.read!(tmp_path)
-      {:ok, updated} = MobileHandoff.finalize_upload(socket.assigns.task, bytes)
-      Planogram.enqueue_analysis(updated.id)
-      {:ok, updated}
-    end)
+      [_ | _] ->
+        consume_uploaded_entries(socket, :photo, fn %{path: tmp_path}, _entry ->
+          bytes = File.read!(tmp_path)
+          {:ok, updated} = MobileHandoff.finalize_upload(socket.assigns.task, bytes)
+          Planogram.enqueue_analysis(updated.id)
+          {:ok, updated}
+        end)
 
-    {:noreply,
-     socket
-     |> assign(:task, Planogram.get_task!(socket.assigns.task.id))
-     |> put_flash(:info, "Photo uploaded — analysis enqueued. You can close this tab.")}
+        {:noreply,
+         socket
+         |> assign(:task, Planogram.get_task!(socket.assigns.task.id))
+         |> put_flash(:info, "Photo uploaded — analysis enqueued. You can close this tab.")}
+    end
   end
 
   @impl true

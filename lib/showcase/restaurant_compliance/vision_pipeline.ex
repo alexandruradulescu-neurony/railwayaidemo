@@ -17,7 +17,7 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
   """
 
   alias Showcase.Common.{AnthropicClient, ResilientJSONParser}
-  alias Showcase.RestaurantCompliance.{Inspection, Impl.VisionRequest}
+  alias Showcase.RestaurantCompliance.{Inspection, Impl.VisionRequest, MockPrompts}
   alias Showcase.Repo
 
   require Logger
@@ -37,10 +37,11 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
     with :ok <- ensure_photos(photo_bytes_list),
          {:ok, inspection} <- mark_analyzing(inspection),
          _ <- broadcast(inspection.id, {:restaurant_compliance, :analyzing, inspection.id}),
-         {:ok, raw_response} <-
+         {:ok, raw_response, source} <-
            call_vision(inspection, photo_bytes_list, reference_bytes_list, scenario, max_tokens),
          {:ok, decoded, partial?} <- parse_response(raw_response.text),
-         {:ok, inspection} <- mark_complete(inspection, decoded, raw_response.usage, partial?) do
+         {:ok, inspection} <-
+           mark_complete(inspection, decoded, raw_response.usage, source, partial?) do
       broadcast(inspection.id, {:restaurant_compliance, :complete, inspection.id})
       {:ok, inspection}
     else
@@ -69,16 +70,37 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
     |> Repo.update()
   end
 
+  # Seeded scenarios (compliant / mixed / non_compliant) bypass the real
+  # `AnthropicClient.call/1` ONLY when the configured impl is `Live`
+  # (operator running with `ANTHROPIC_API_KEY`). When the impl is `Mock`
+  # (tests + dev), the Mock serves the same scripted responses via
+  # `MockPrompts.register_all/0` AND tests can override per-fingerprint
+  # via `Mock.register/2`. See REVIEW.md HI-01.
   defp call_vision(inspection, photo_bytes_list, reference_bytes_list, scenario, max_tokens) do
-    ruleset = %{
-      name: inspection.ruleset.name,
-      rules_text: inspection.ruleset.rules_text
-    }
+    cond do
+      live_impl?() and match?({:ok, _}, MockPrompts.scripted_response_for(scenario)) ->
+        {:ok, response} = MockPrompts.scripted_response_for(scenario)
+        {:ok, response, "mock"}
 
-    opts = [scenario: scenario, max_tokens: max_tokens]
-    request = VisionRequest.build(ruleset, photo_bytes_list, reference_bytes_list, opts)
+      true ->
+        ruleset = %{
+          name: inspection.ruleset.name,
+          rules_text: inspection.ruleset.rules_text
+        }
 
-    AnthropicClient.call(request)
+        opts = [scenario: scenario, max_tokens: max_tokens]
+        request = VisionRequest.build(ruleset, photo_bytes_list, reference_bytes_list, opts)
+
+        case AnthropicClient.call(request) do
+          {:ok, response} -> {:ok, response, "live"}
+          {:error, _} = err -> err
+        end
+    end
+  end
+
+  defp live_impl? do
+    Application.get_env(:showcase, :anthropic_client_impl) ==
+      Showcase.Common.AnthropicClient.Live
   end
 
   defp parse_response(text) do
@@ -89,7 +111,9 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
     end
   end
 
-  defp mark_complete(inspection, decoded, usage, _partial?) do
+  # `source` is "mock" (free, scripted) or "live" (real Claude). UI uses
+  # it to render "(scripted)" on the cost badge.
+  defp mark_complete(inspection, decoded, usage, source, _partial?) do
     inspection
     |> Inspection.changeset(%{
       status: "complete",
@@ -97,7 +121,8 @@ defmodule Showcase.RestaurantCompliance.VisionPipeline do
       usage: %{
         "input_tokens" => usage.input_tokens,
         "output_tokens" => usage.output_tokens,
-        "cost_estimate_cents" => usage.cost_estimate_cents
+        "cost_estimate_cents" => usage.cost_estimate_cents,
+        "source" => source
       }
     })
     |> Repo.update()

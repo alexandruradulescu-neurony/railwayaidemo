@@ -25,9 +25,14 @@ defmodule ShowcaseWeb.Router do
 
     live "/", DashboardLive
     live "/order-flow", OrderFlow.InboxLive
-    live "/order-flow/orders/:id", OrderFlow.OrderDetailLive
+    # OrderDetailLive was the standalone order page — superseded by the
+    # inline order pane inside the new 3-pane InboxLive. Route + module
+    # both deleted (REVIEW.md HI-09).
     live "/invoice-approval", InvoiceApproval.QueueLive
     live "/invoice-approval/bundles/:id", InvoiceApproval.BundleDetailLive
+    # RecruitFlow is :coming_soon in TileConfig (not clickable from the
+    # dashboard) but the routes stay mounted so the LV tests still run.
+    # Direct URL access renders empty Kanban columns — accepted trade-off.
     live "/recruit-flow", RecruitFlow.KanbanLive
     live "/recruit-flow/applications/:id", RecruitFlow.ApplicationDetailLive
     live "/planogram", Planogram.PlanogramLive, :merchandiser

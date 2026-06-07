@@ -10,7 +10,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   @test_photo "/uploads/planogram/test-shelf.png"
 
   setup do
-    Seed.seed_test_fixtures()
+    Seed.seed()
     MockPrompts.register_all()
 
     # Worker requires a real photo on disk — no more bundled fallback.
@@ -27,7 +27,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
     test "shows the planogram name + Upload & analyze button", %{conn: conn} do
       task = a_task("compliant")
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
-      assert html =~ "Downtown Mart"
+      assert html =~ "Farmacia Tei Centru"
       assert html =~ "Upload &amp; analyze"
       assert html =~ "pending"
     end
@@ -140,7 +140,11 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   end
 
   defp a_task(scenario) do
-    Repo.get_by!(VerificationTask, scenario: scenario)
+    # Prod seed has 2 "compliant" tasks (pharmacy + juices) and 2 "major_issues"
+    # tasks (Catena Plaza + Mega Image). Just pick one — every test only needs
+    # ONE task of the given scenario.
+    import Ecto.Query, only: [from: 2]
+    Repo.one!(from t in VerificationTask, where: t.scenario == ^scenario, limit: 1)
   end
 
   defp run_to_completion(task) do

@@ -171,11 +171,15 @@ defmodule Showcase.InvoiceApproval.Pipeline do
 
   defp normalize_discrepancy(_), do: nil
 
+  # Never `String.to_atom/1` on Claude payloads — that's an unbounded
+  # atom-table growth vector (CLAUDE.md rule). If the LLM hallucinates a
+  # field name we haven't seen at compile time, return `:unknown` and let
+  # `classify_severity/2` map it to `:red` via the categorical fallback.
   defp safe_atom(str) when is_binary(str) do
     try do
       String.to_existing_atom(str)
     rescue
-      ArgumentError -> String.to_atom(str)
+      ArgumentError -> :unknown
     end
   end
 
@@ -190,8 +194,11 @@ defmodule Showcase.InvoiceApproval.Pipeline do
     }
   end
 
+  # Thresholds come from a JSONB column, so keys are always strings after
+  # Jason.decode. No atom fallback needed (and `String.to_atom/1` is banned
+  # outside test code by project policy).
   defp get(map, key, default) do
-    Map.get(map, key) || Map.get(map, String.to_atom(key)) || default
+    Map.get(map, key, default)
   end
 
   defp raw_matrix_to_json(rows) do
