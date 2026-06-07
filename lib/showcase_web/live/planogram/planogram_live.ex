@@ -169,15 +169,12 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
-        <div class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-semibold">Planogram Manager</h1>
-            <p class="text-sm text-zinc-500 mt-1">
-              {role_subtitle(@role)}
-            </p>
-          </div>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
           <div class="flex gap-2 items-center">
             <button
               :for={role <- ~w(merchandiser manager admin)}
@@ -185,19 +182,35 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
               phx-click="switch_role"
               phx-value-role={role}
               class={[
-                "rounded px-3 py-2 text-sm font-medium",
+                "rounded px-3 py-2 text-sm font-medium transition-colors",
                 if(@role == role,
-                  do: "bg-zinc-900 text-white",
-                  else: "bg-white border text-zinc-700 hover:bg-zinc-100"
+                  do: "bg-ink text-white",
+                  else: "bg-white border border-line text-ink/80 hover:bg-surface-lav"
                 )
               ]}
             >
               {String.capitalize(role)}
             </button>
-            <a href="/" class="ml-2 text-sm text-zinc-500 underline">&larr; Dashboard</a>
+            <a href="/" class="ml-2 text-sm text-ink/60 hover:text-purple transition-colors">
+              &larr; Dashboard
+            </a>
           </div>
         </div>
       </header>
+
+      <div class="border-b border-line bg-white">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Neurony · Planogram Manager
+          </p>
+          <h1 class="mt-2 font-heading font-bold text-3xl text-ink tracking-tight">
+            {role_title(@role)}
+          </h1>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            {role_subtitle(@role)}
+          </p>
+        </div>
+      </div>
 
       <main class="max-w-7xl mx-auto px-6 py-6">
         <div :if={@flash["info"]} class="mb-4 rounded border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
@@ -225,6 +238,10 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
 
   defp role_subtitle("manager"), do: "Author planograms and create verification tasks."
   defp role_subtitle("admin"), do: "Audit log, model settings, cost overview."
+
+  defp role_title("merchandiser"), do: "Field audits"
+  defp role_title("manager"), do: "Manage planograms and tasks"
+  defp role_title("admin"), do: "Admin overview"
 
   attr :buckets, :map, required: true
   attr :active_qr_task_id, :integer, default: nil
@@ -304,7 +321,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             {@task.status}
           </span>
         </div>
-        <div class="text-xs text-zinc-500 mt-1">
+        <div class="text-xs text-ink/60 mt-1">
           Due {Date.to_iso8601(@task.due_date)} · {@task.planogram && @task.planogram.name} · scenario: {@task.scenario}
         </div>
       </div>
@@ -324,7 +341,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           phx-click="force_truncation"
           phx-value-task_id={@task.id}
           title="Cap max_tokens=200 to demo the resilient parser"
-          class="rounded border px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100"
+          class="rounded border px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
         >
           Force truncation
         </button>
@@ -332,7 +349,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           type="button"
           phx-click="toggle_qr"
           phx-value-task_id={@task.id}
-          class="rounded border px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100"
+          class="rounded border px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
         >
           {if @active_qr_task_id == @task.id, do: "Hide QR", else: "Open on phone"}
         </button>
@@ -351,11 +368,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     "http://#{host}:#{port}/planogram/mobile/#{task.mobile_token}"
   end
 
-  defp status_classes("pending"), do: "bg-zinc-100 text-zinc-700"
+  defp status_classes("pending"), do: "bg-surface-lav text-ink/80"
   defp status_classes("analyzing"), do: "bg-blue-100 text-blue-700"
   defp status_classes("complete"), do: "bg-emerald-100 text-emerald-700"
   defp status_classes("failed"), do: "bg-rose-100 text-rose-700"
-  defp status_classes(_), do: "bg-zinc-100"
+  defp status_classes(_), do: "bg-surface-lav"
 
   attr :planograms, :list, required: true
   attr :uploads, :map, required: true
@@ -385,11 +402,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
                 :if={pg.reference_image_path}
                 src={pg.reference_image_path}
                 alt={pg.name}
-                class="w-12 h-12 object-cover rounded border bg-zinc-50 flex-shrink-0"
+                class="w-12 h-12 object-cover rounded border bg-surface-lav-2 flex-shrink-0"
               />
               <div class="flex-1 min-w-0">
                 <div class="font-medium truncate">{pg.name}</div>
-                <div class="text-xs text-zinc-500 truncate">{pg.description}</div>
+                <div class="text-xs text-ink/60 truncate">{pg.description}</div>
               </div>
               <button
                 type="button"
@@ -402,7 +419,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
               </button>
             </li>
           </ul>
-          <p :if={@planograms == []} class="text-sm text-zinc-500">
+          <p :if={@planograms == []} class="text-sm text-ink/60">
             No planograms yet — upload one on the right.
           </p>
         </section>
@@ -415,11 +432,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             class="space-y-3"
           >
             <div>
-              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Name</label>
+              <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Name</label>
               <input name="planogram[name]" required class="w-full rounded border px-3 py-2" />
             </div>
             <div>
-              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Description</label>
+              <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Description</label>
               <textarea
                 name="planogram[description]"
                 rows="2"
@@ -427,13 +444,13 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
               ></textarea>
             </div>
             <div>
-              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">
+              <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">
                 Reference image
               </label>
               <.live_file_input upload={@uploads.reference} class="block w-full text-sm" />
               <div
                 :for={entry <- @uploads.reference.entries}
-                class="text-xs text-zinc-600 mt-1"
+                class="text-xs text-ink/70 mt-1"
               >
                 {entry.client_name} — {entry.progress}%
                 <div
@@ -443,7 +460,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
                   {upload_error_to_string(err)}
                 </div>
               </div>
-              <p class="text-xs text-zinc-400 mt-1">PNG/JPEG, max 5 MB.</p>
+              <p class="text-xs text-ink/50 mt-1">PNG/JPEG, max 5 MB.</p>
             </div>
             <button
               type="submit"
@@ -452,7 +469,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             >
               Save planogram
             </button>
-            <p :if={@uploads.reference.entries == []} class="text-xs text-zinc-500 mt-1">
+            <p :if={@uploads.reference.entries == []} class="text-xs text-ink/60 mt-1">
               Attach a reference image to enable save.
             </p>
           </form>
@@ -466,7 +483,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
         </p>
         <form :if={@planograms != []} phx-submit="create_task" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
           <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Store</label>
+            <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Store</label>
             <input
               name="task[store_name]"
               required
@@ -475,13 +492,13 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             />
           </div>
           <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Planogram</label>
+            <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Planogram</label>
             <select name="task[planogram_id]" required class="w-full rounded border px-3 py-2">
               <option :for={pg <- @planograms} value={pg.id}>{pg.name}</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Due date</label>
+            <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Due date</label>
             <input
               name="task[due_date]"
               type="date"
@@ -502,11 +519,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
 
       <section class="rounded border bg-white p-4">
         <h2 class="text-lg font-medium mb-3">All tasks ({length(@all_tasks)})</h2>
-        <p :if={@all_tasks == []} class="text-sm text-zinc-500">
+        <p :if={@all_tasks == []} class="text-sm text-ink/60">
           No tasks yet — create one above.
         </p>
         <table :if={@all_tasks != []} class="w-full text-sm">
-          <thead class="text-xs uppercase tracking-wide text-zinc-500">
+          <thead class="text-xs uppercase tracking-wide text-ink/60">
             <tr>
               <th class="text-left py-2">Store</th>
               <th class="text-left py-2">Planogram</th>
@@ -518,17 +535,17 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           <tbody class="divide-y">
             <tr :for={task <- @all_tasks}>
               <td class="py-2 font-medium">{task.store_name}</td>
-              <td class="py-2 text-zinc-600">
+              <td class="py-2 text-ink/70">
                 {task.planogram && task.planogram.name}
               </td>
-              <td class="py-2 text-zinc-600">{task.due_date}</td>
+              <td class="py-2 text-ink/70">{task.due_date}</td>
               <td class="py-2">
                 <span class={["rounded px-2 py-0.5 text-xs", status_classes(task.status)]}>
                   {task.status}
                 </span>
               </td>
               <td class="py-2 text-right space-x-3">
-                <a href={"/planogram/#{task.id}"} class="text-xs text-zinc-700 underline hover:text-zinc-900">
+                <a href={"/planogram/#{task.id}"} class="text-xs text-ink/80 underline hover:text-ink">
                   Open
                 </a>
                 <button
@@ -560,27 +577,27 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
       <h2 class="text-lg font-medium mb-3">Admin overview</h2>
       <dl class="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Vision model</dt>
+          <dt class="text-xs uppercase tracking-wide text-ink/60">Vision model</dt>
           <dd class="font-mono">claude-sonnet-4-5 (pinned)</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Default text model</dt>
+          <dt class="text-xs uppercase tracking-wide text-ink/60">Default text model</dt>
           <dd class="font-mono">{Showcase.Common.Config.default_model()}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Oban queue</dt>
+          <dt class="text-xs uppercase tracking-wide text-ink/60">Oban queue</dt>
           <dd class="font-mono">:planogram (concurrency 5)</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Fingerprint</dt>
+          <dt class="text-xs uppercase tracking-wide text-ink/60">Fingerprint</dt>
           <dd class="font-mono">planogram_vision_v1</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-zinc-500">Scenarios</dt>
+          <dt class="text-xs uppercase tracking-wide text-ink/60">Scenarios</dt>
           <dd class="font-mono">compliant / minor_issues / major_issues</dd>
         </div>
       </dl>
-      <p class="mt-4 text-xs text-zinc-500">
+      <p class="mt-4 text-xs text-ink/60">
         Reset all data and audit log via <a href="/admin/reset" class="underline">/admin/reset</a>.
       </p>
     </section>

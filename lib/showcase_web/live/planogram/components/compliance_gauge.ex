@@ -35,7 +35,7 @@ defmodule ShowcaseWeb.Planogram.Components.ComplianceGauge do
     ~H"""
     <div class="relative inline-block" style={"width: #{@size}px; height: #{@size}px"}>
       <svg width={@size} height={@size} viewBox={"0 0 #{@size} #{@size}"}>
-        <circle cx={@cx} cy={@cy} r={@radius} class="stroke-zinc-200" stroke-width="10" fill="none"/>
+        <circle cx={@cx} cy={@cy} r={@radius} class="stroke-line" stroke-width="10" fill="none"/>
         <circle cx={@cx} cy={@cy} r={@radius}
                 class={["transition-all", @color]} stroke-width="10" fill="none"
                 stroke-linecap="round"

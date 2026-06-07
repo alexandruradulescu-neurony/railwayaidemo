@@ -118,21 +118,36 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
     assigns = assign(assigns, :main_width, main_width)
 
     ~H"""
-    <div class="min-h-screen bg-zinc-50">
-      <header class="border-b border-zinc-200 bg-white">
-        <div class={["mx-auto px-6 py-5 flex items-center justify-between", @main_width]}>
-          <div>
-            <h1 class="text-xl font-semibold"><%= @task.store_name %></h1>
-            <p class="text-sm text-zinc-500 mt-1">
-              <%= @task.planogram.name %> · due <%= @task.due_date %> ·
-              <span class={["rounded px-2 py-0.5 text-xs", status_classes(@task.status)]}>
-                <%= @task.status %>
-              </span>
-            </p>
-          </div>
-          <a href="/planogram" class="text-sm text-zinc-500 underline">&larr; Back</a>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="border-b border-line bg-white">
+        <div class={["mx-auto px-6 py-5 flex items-center justify-between gap-4", @main_width]}>
+          <a href="/" class="flex items-center gap-3 text-ink shrink-0">
+            <img src={~p"/images/neurony/wordmark.svg"} class="h-7" alt="Neurony" />
+          </a>
+          <a href="/planogram" class="text-sm text-ink/60 hover:text-purple transition-colors">
+            &larr; Back to Planogram
+          </a>
         </div>
       </header>
+
+      <div class="border-b border-line bg-white">
+        <div class={["mx-auto px-6 py-6", @main_width]}>
+          <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+            Audit · {@task.planogram.name}
+          </p>
+          <div class="mt-2 flex items-baseline gap-3 flex-wrap">
+            <h1 class="font-heading font-bold text-3xl text-ink tracking-tight">
+              {@task.store_name}
+            </h1>
+            <span class={["rounded px-2 py-0.5 text-xs", status_classes(@task.status)]}>
+              {@task.status}
+            </span>
+          </div>
+          <p class="mt-2 font-body text-sm text-ink/60">
+            Due {@task.due_date}
+          </p>
+        </div>
+      </div>
 
       <main class={["mx-auto px-6 py-6 space-y-6", @main_width]}>
         <%= case @task.status do %>
@@ -168,9 +183,9 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         :if={@task.planogram.reference_image_path}
         src={@task.planogram.reference_image_path}
         alt={@task.planogram.name}
-        class="w-full max-h-72 object-contain rounded border bg-zinc-50"
+        class="w-full max-h-72 object-contain rounded border bg-surface-lav-2"
       />
-      <p class="text-xs text-zinc-500">{@task.planogram.description}</p>
+      <p class="text-xs text-ink/60">{@task.planogram.description}</p>
     </section>
 
     <section :if={@task.photo_path} class="rounded border bg-white p-5 space-y-3">
@@ -178,13 +193,13 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       <img
         src={@task.photo_path}
         alt="Captured shelf"
-        class="w-full max-h-72 object-contain rounded border bg-zinc-50"
+        class="w-full max-h-72 object-contain rounded border bg-surface-lav-2"
       />
     </section>
 
     <section :if={!@task.photo_path} class="rounded border bg-white p-5 space-y-3">
       <h2 class="text-lg font-medium">Upload shelf photo</h2>
-      <p class="text-sm text-zinc-500">
+      <p class="text-sm text-ink/60">
         Pick a photo from your computer, or use the
         <a class="underline" href={"/planogram/mobile/#{@task.mobile_token}"}>mobile capture link</a>.
       </p>
@@ -193,7 +208,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         <.live_file_input upload={@uploads.shelf} class="block w-full text-sm" />
         <div
           :for={entry <- @uploads.shelf.entries}
-          class="text-xs text-zinc-600"
+          class="text-xs text-ink/70"
         >
           {entry.client_name} — {entry.progress}%
           <div
@@ -210,7 +225,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         >
           Upload & analyze
         </button>
-        <p :if={@uploads.shelf.entries == []} class="text-xs text-zinc-500">
+        <p :if={@uploads.shelf.entries == []} class="text-xs text-ink/60">
           Pick a shelf photo to enable the analysis.
         </p>
       </form>
@@ -223,7 +238,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       >
         Re-run analysis
       </button>
-      <span class="text-xs text-zinc-500">
+      <span class="text-xs text-ink/60">
         Re-runs the AI comparison against the currently-uploaded shelf photo.
       </span>
     </div>
@@ -261,7 +276,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
       <%!-- Left/main column: shelf photo with overlay tags --%>
       <section class="rounded border bg-white p-5 lg:col-span-2">
         <h2 class="text-lg font-medium mb-3">Shelf compliance</h2>
-        <div class="relative rounded overflow-hidden bg-zinc-100">
+        <div class="relative rounded overflow-hidden bg-surface-lav">
           <img
             :if={@task.photo_path}
             src={@task.photo_path}
@@ -270,7 +285,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           />
           <div
             :if={!@task.photo_path}
-            class="aspect-[4/3] flex items-center justify-center text-sm text-zinc-400"
+            class="aspect-[4/3] flex items-center justify-center text-sm text-ink/50"
           >
             (no photo — bundled scenario was used)
           </div>
@@ -303,13 +318,13 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           </span>
         </div>
 
-        <p class="text-sm text-zinc-700 mt-4">{@rendered.executive_summary}</p>
+        <p class="text-sm text-ink/80 mt-4">{@rendered.executive_summary}</p>
       </section>
 
       <%!-- Right column: stats sidebar --%>
       <section class="space-y-4">
         <div class="rounded border bg-white p-5 text-center">
-          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-2">
+          <div class="text-xs uppercase tracking-wide text-ink/60 mb-2">
             Compliance Score
           </div>
           <.compliance_gauge pct={@rendered.gauge_pct} />
@@ -320,7 +335,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             <.icon name="hero-x-circle" class="size-5" />
           </span>
           <div class="flex-1">
-            <div class="text-xs uppercase tracking-wide text-zinc-500">Mismatches Found</div>
+            <div class="text-xs uppercase tracking-wide text-ink/60">Mismatches Found</div>
             <div class="text-2xl font-semibold">{@rendered.mismatches_count}</div>
           </div>
         </div>
@@ -330,7 +345,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             <.icon name="hero-currency-dollar" class="size-5" />
           </span>
           <div class="flex-1">
-            <div class="text-xs uppercase tracking-wide text-zinc-500">Price Tags Verified</div>
+            <div class="text-xs uppercase tracking-wide text-ink/60">Price Tags Verified</div>
             <div class="text-2xl font-semibold">{@rendered.prices_count}</div>
           </div>
         </div>
@@ -340,7 +355,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             <.icon name="hero-exclamation-triangle" class="size-5" />
           </span>
           <div class="flex-1">
-            <div class="text-xs uppercase tracking-wide text-zinc-500">Out of Stock</div>
+            <div class="text-xs uppercase tracking-wide text-ink/60">Out of Stock</div>
             <div class="text-2xl font-semibold">{@rendered.out_of_stock_count}</div>
           </div>
         </div>
@@ -352,7 +367,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
         <div class="flex items-center gap-2 px-1">
           <.cost_badge :if={@usage} usage={@usage} />
-          <span class="text-xs text-zinc-400">
+          <span class="text-xs text-ink/50">
             photo quality: {@rendered.photo_quality.score || "?"}
           </span>
         </div>
@@ -376,8 +391,8 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
           </span>
           <div class="flex-1">
             <div class="font-medium">{iss.type}</div>
-            <div class="text-sm text-zinc-700">{iss.description}</div>
-            <div class="text-xs text-zinc-500 mt-1">Impact: {iss.business_impact}</div>
+            <div class="text-sm text-ink/80">{iss.description}</div>
+            <div class="text-xs text-ink/60 mt-1">Impact: {iss.business_impact}</div>
           </div>
         </li>
       </ul>
@@ -385,7 +400,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
     <section :if={@rendered.suggestions != []} class="rounded border bg-white p-5">
       <h2 class="text-lg font-medium mb-3">Suggested actions</h2>
-      <ul class="list-disc list-inside text-sm text-zinc-700 space-y-1">
+      <ul class="list-disc list-inside text-sm text-ink/80 space-y-1">
         <li :for={s <- @rendered.suggestions}>{s}</li>
       </ul>
     </section>
@@ -434,11 +449,11 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   defp severity_badge_classes("rose"), do: "bg-rose-100 text-rose-700"
   defp severity_badge_classes("amber"), do: "bg-amber-100 text-amber-700"
   defp severity_badge_classes("emerald"), do: "bg-emerald-100 text-emerald-700"
-  defp severity_badge_classes(_), do: "bg-zinc-100 text-zinc-700"
+  defp severity_badge_classes(_), do: "bg-surface-lav text-ink/80"
 
-  defp status_classes("pending"), do: "bg-zinc-100 text-zinc-700"
+  defp status_classes("pending"), do: "bg-surface-lav text-ink/80"
   defp status_classes("analyzing"), do: "bg-blue-100 text-blue-700"
   defp status_classes("complete"), do: "bg-emerald-100 text-emerald-700"
   defp status_classes("failed"), do: "bg-rose-100 text-rose-700"
-  defp status_classes(_), do: "bg-zinc-100"
+  defp status_classes(_), do: "bg-surface-lav"
 end

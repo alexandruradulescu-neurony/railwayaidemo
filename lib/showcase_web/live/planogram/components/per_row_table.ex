@@ -11,7 +11,7 @@ defmodule ShowcaseWeb.Planogram.Components.PerRowTable do
   def per_row_table(assigns) do
     ~H"""
     <table class="w-full text-sm">
-      <thead class="text-xs uppercase tracking-wide text-zinc-500">
+      <thead class="text-xs uppercase tracking-wide text-ink/60">
         <tr>
           <th class="text-left py-2">Row</th>
           <th class="text-left py-2">Status</th>
@@ -30,10 +30,10 @@ defmodule ShowcaseWeb.Planogram.Components.PerRowTable do
           </td>
           <td class="py-2">
             <%= for p <- row.found_products do %>
-              <div><%= p["name"] %> <span class="text-zinc-400">×<%= p["qty"] %></span></div>
+              <div><%= p["name"] %> <span class="text-ink/50">×<%= p["qty"] %></span></div>
             <% end %>
           </td>
-          <td class="py-2 text-zinc-700">
+          <td class="py-2 text-ink/80">
             <ul class="list-disc list-inside">
               <li :for={iss <- row.issues}><%= iss %></li>
             </ul>

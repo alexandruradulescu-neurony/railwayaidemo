@@ -53,10 +53,10 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
   @impl true
   def render(%{error: :not_found} = assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+    <div class="min-h-screen flex items-center justify-center p-6 bg-surface-lav-2">
       <div class="rounded border bg-white p-6 max-w-md text-center">
         <h1 class="text-lg font-semibold mb-2">Link is no longer valid</h1>
-        <p class="text-sm text-zinc-600">
+        <p class="text-sm text-ink/70">
           The mobile-capture link could not be matched to a verification task.
         </p>
       </div>
@@ -66,10 +66,10 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
 
   def render(%{error: :already_processed} = assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+    <div class="min-h-screen flex items-center justify-center p-6 bg-surface-lav-2">
       <div class="rounded border bg-white p-6 max-w-md text-center">
         <h1 class="text-lg font-semibold mb-2">Already done</h1>
-        <p class="text-sm text-zinc-600">
+        <p class="text-sm text-ink/70">
           This audit has already been processed. Switch back to the desktop view.
         </p>
       </div>
@@ -79,33 +79,42 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLive do
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen p-4 bg-zinc-50">
-      <header class="mb-4">
-        <h1 class="text-xl font-semibold">{@task.store_name}</h1>
-        <p class="text-sm text-zinc-500">{@task.planogram.name}</p>
+    <div class="min-h-screen bg-surface-lav-2">
+      <header class="bg-white border-b border-line px-4 py-4">
+        <img src={~p"/images/neurony/wordmark.svg"} class="h-6" alt="Neurony" />
       </header>
 
-      <form phx-submit="submit" phx-change="validate" class="space-y-4">
-        <label class="block">
-          <span class="block text-sm font-medium mb-2">Capture photo</span>
-          <.live_file_input upload={@uploads.photo} class="w-full" />
-        </label>
+      <div class="px-4 py-6">
+        <p class="font-body font-bold text-xs uppercase tracking-wider text-purple">
+          Mobile capture
+        </p>
+        <h1 class="mt-2 font-heading font-bold text-2xl text-ink tracking-tight">
+          {@task.store_name}
+        </h1>
+        <p class="mt-1 font-body text-sm text-ink/60">{@task.planogram.name}</p>
 
-        <div :for={entry <- @uploads.photo.entries} class="text-sm text-zinc-600">
-          {entry.client_name} — {entry.progress}%
-          <div :for={err <- upload_errors(@uploads.photo, entry)} class="text-rose-600 text-xs">
-            {error_to_string(err)}
+        <form phx-submit="submit" phx-change="validate" class="mt-6 space-y-4">
+          <label class="block">
+            <span class="block text-sm font-medium text-ink mb-2">Capture photo</span>
+            <.live_file_input upload={@uploads.photo} class="w-full" />
+          </label>
+
+          <div :for={entry <- @uploads.photo.entries} class="text-sm text-ink/70">
+            {entry.client_name} — {entry.progress}%
+            <div :for={err <- upload_errors(@uploads.photo, entry)} class="text-rose-600 text-xs">
+              {error_to_string(err)}
+            </div>
           </div>
-        </div>
 
-        <button
-          type="submit"
-          disabled={@uploads.photo.entries == []}
-          class="w-full rounded bg-emerald-600 px-4 py-3 text-base font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
-        >
-          Upload and analyze
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={@uploads.photo.entries == []}
+            class="w-full rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          >
+            Upload &amp; analyze
+          </button>
+        </form>
+      </div>
     </div>
     """
   end
