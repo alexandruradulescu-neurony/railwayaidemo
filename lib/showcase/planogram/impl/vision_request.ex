@@ -63,8 +63,8 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
       max_tokens: max_tokens,
       messages: [
         %{
-          "role" => "user",
-          "content" => [
+          role: "user",
+          content: [
             %{
               "type" => "image",
               "source" => %{

@@ -26,8 +26,9 @@ defmodule Showcase.Planogram.Impl.VisionRequestTest do
       assert request.metadata == %{fingerprint: "planogram_vision_v1", scenario: "compliant"}
       assert request.max_tokens == 4096
 
-      # First content block is the image
-      [%{"role" => "user", "content" => [image, text]}] = request.messages
+      # Outer message map must use atom keys (Anthropix schema requires it);
+      # inner content blocks are permissive (either atom or string keys).
+      [%{role: "user", content: [image, text]}] = request.messages
       assert image["type"] == "image"
       assert image["source"]["type"] == "base64"
       assert image["source"]["media_type"] == "image/png"
