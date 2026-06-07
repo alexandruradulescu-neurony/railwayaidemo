@@ -32,6 +32,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
      |> assign(:role, "merchandiser")
      |> assign(:active_qr_task_id, nil)
      |> assign(:planograms, Planogram.list_planograms())
+     |> assign(:new_planogram, %{"name" => "", "description" => ""})
      |> allow_upload(:reference,
        accept: ~w(.png .jpg .jpeg),
        max_entries: 1,
@@ -131,6 +132,12 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     |> Enum.join(", ")
   end
 
+  def handle_event("validate_planogram", %{"planogram" => attrs}, socket) do
+    # Persist typed name/description across upload-progress re-renders so the
+    # inputs don't reset when the user picks a file.
+    {:noreply, assign(socket, :new_planogram, attrs)}
+  end
+
   def handle_event("validate_planogram", _params, socket), do: {:noreply, socket}
 
   def handle_event("create_planogram", %{"planogram" => attrs}, socket) do
@@ -146,7 +153,8 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
             {:noreply,
              socket
              |> put_flash(:info, "Planogram added.")
-             |> assign(:planograms, Planogram.list_planograms())}
+             |> assign(:planograms, Planogram.list_planograms())
+             |> assign(:new_planogram, %{"name" => "", "description" => ""})}
 
           {:error, _changeset} ->
             {:noreply, put_flash(socket, :error, "Could not save planogram.")}
@@ -224,7 +232,12 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           <% "merchandiser" -> %>
             <.render_merchandiser buckets={@buckets} active_qr_task_id={@active_qr_task_id} />
           <% "manager" -> %>
-            <.render_manager planograms={@planograms} uploads={@uploads} buckets={@buckets} />
+            <.render_manager
+              planograms={@planograms}
+              uploads={@uploads}
+              buckets={@buckets}
+              new_planogram={@new_planogram}
+            />
           <% "admin" -> %>
             <.render_admin />
         <% end %>
@@ -377,6 +390,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   attr :planograms, :list, required: true
   attr :uploads, :map, required: true
   attr :buckets, :map, required: true
+  attr :new_planogram, :map, required: true
 
   defp render_manager(assigns) do
     all_tasks =
@@ -433,7 +447,12 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           >
             <div>
               <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Name</label>
-              <input name="planogram[name]" required class="w-full rounded-lg border border-line px-3 py-2" />
+              <input
+                name="planogram[name]"
+                value={@new_planogram["name"] || ""}
+                required
+                class="w-full rounded-lg border border-line px-3 py-2"
+              />
             </div>
             <div>
               <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">Description</label>
@@ -441,7 +460,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
                 name="planogram[description]"
                 rows="2"
                 class="w-full rounded-lg border border-line px-3 py-2"
-              ></textarea>
+              >{@new_planogram["description"] || ""}</textarea>
             </div>
             <div>
               <label class="block text-xs uppercase tracking-wide text-ink/60 mb-1">
