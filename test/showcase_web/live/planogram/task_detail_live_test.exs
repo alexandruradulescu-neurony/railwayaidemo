@@ -10,7 +10,7 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
   @test_photo "/uploads/planogram/test-shelf.png"
 
   setup do
-    Seed.seed()
+    Seed.seed(); Seed.seed_test_fixtures()
     MockPrompts.register_all()
 
     # Worker requires a real photo on disk — no more bundled fallback.

@@ -6,7 +6,7 @@ defmodule ShowcaseWeb.Planogram.MobileCaptureLiveTest do
   alias Showcase.Repo
 
   setup do
-    Seed.seed()
+    Seed.seed(); Seed.seed_test_fixtures()
     :ok
   end
 

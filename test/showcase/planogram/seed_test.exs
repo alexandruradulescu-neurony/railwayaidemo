@@ -24,9 +24,23 @@ defmodule Showcase.Planogram.SeedTest do
     end
   end
 
-  describe "seed/0" do
-    test "creates 1 planogram + 3 tasks with distinct scenarios" do
+  describe "seed/0 (demo-clean baseline)" do
+    test "creates NO planograms or tasks — operator builds them live" do
       :ok = Seed.seed()
+      assert Repo.aggregate(Planogram, :count) == 0
+      assert Repo.aggregate(VerificationTask, :count) == 0
+    end
+
+    test "is idempotent" do
+      :ok = Seed.seed()
+      :ok = Seed.seed()
+      assert Repo.aggregate(Planogram, :count) == 0
+    end
+  end
+
+  describe "seed_test_fixtures/0 (opt-in for the test suite)" do
+    test "creates 1 planogram + 3 tasks with distinct scenarios" do
+      :ok = Seed.seed_test_fixtures()
 
       planograms = Repo.all(Planogram)
       assert length(planograms) >= 1
@@ -46,9 +60,9 @@ defmodule Showcase.Planogram.SeedTest do
     end
 
     test "is idempotent" do
-      :ok = Seed.seed()
+      :ok = Seed.seed_test_fixtures()
       first_count = Repo.aggregate(VerificationTask, :count)
-      :ok = Seed.seed()
+      :ok = Seed.seed_test_fixtures()
       assert Repo.aggregate(VerificationTask, :count) == first_count
     end
   end

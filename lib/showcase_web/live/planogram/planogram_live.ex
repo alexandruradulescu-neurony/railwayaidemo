@@ -529,6 +529,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
               name="task[due_date]"
               type="date"
               required
+              value={Date.utc_today() |> Date.to_iso8601()}
               class="w-full rounded-lg border border-line px-3 py-2"
             />
           </div>
