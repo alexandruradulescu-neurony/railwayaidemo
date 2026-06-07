@@ -58,16 +58,6 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     {:noreply, socket |> put_flash(:info, "Analysis enqueued.") |> load_tasks()}
   end
 
-  def handle_event("force_truncation", %{"task_id" => task_id}, socket) do
-    {id, _} = Integer.parse(task_id)
-    Planogram.enqueue_analysis(id, max_tokens: 200)
-
-    {:noreply,
-     socket
-     |> put_flash(:info, "Truncated analysis enqueued (max_tokens=200).")
-     |> load_tasks()}
-  end
-
   def handle_event("toggle_qr", %{"task_id" => task_id}, socket) do
     {id, _} = Integer.parse(task_id)
     new_active = if socket.assigns.active_qr_task_id == id, do: nil, else: id
@@ -323,40 +313,53 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   attr :active_qr_task_id, :integer, default: nil
 
   defp task_row(assigns) do
+    score =
+      case assigns.task.result do
+        %{"compliance_score" => s} when is_number(s) -> s
+        _ -> nil
+      end
+
+    assigns = assign(assigns, :score, score)
+
     ~H"""
     <div class="flex items-center justify-between gap-4">
       <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <a href={"/planogram/#{@task.id}"} class="font-medium hover:underline">
+        <div class="flex items-center gap-3 flex-wrap">
+          <a href={"/planogram/#{@task.id}"} class="font-medium text-ink hover:underline">
             {@task.store_name}
           </a>
+          <span :if={@score} class={[
+            "rounded-full px-2.5 py-0.5 text-xs font-bold",
+            score_pill_classes(@score)
+          ]}>
+            {@score}%
+          </span>
           <span class={["rounded px-2 py-0.5 text-xs", status_classes(@task.status)]}>
             {@task.status}
           </span>
         </div>
         <div class="text-xs text-ink/60 mt-1">
-          Due {Date.to_iso8601(@task.due_date)} · {@task.planogram && @task.planogram.name} · scenario: {@task.scenario}
+          Due {Date.to_iso8601(@task.due_date)} · {@task.planogram && @task.planogram.name}
         </div>
       </div>
 
       <div class="flex items-center gap-2">
+        <a
+          :if={@task.status == "complete"}
+          href={"/planogram/#{@task.id}"}
+          class="rounded-lg bg-purple px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          View results
+        </a>
         <button
+          :if={@task.status != "complete"}
           type="button"
           phx-click="run_analysis"
           phx-value-task_id={@task.id}
-          disabled={@task.status in ["analyzing", "complete"]}
-          class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+          disabled={@task.status == "analyzing"}
+          class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
         >
           Run analysis
-        </button>
-        <button
-          type="button"
-          phx-click="force_truncation"
-          phx-value-task_id={@task.id}
-          title="Cap max_tokens=200 to demo the resilient parser"
-          class="rounded-lg border border-line px-3 py-2 text-sm text-ink/80 hover:bg-surface-lav"
-        >
-          Force truncation
         </button>
         <button
           type="button"
@@ -374,6 +377,10 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     </div>
     """
   end
+
+  defp score_pill_classes(s) when is_number(s) and s >= 90, do: "bg-emerald-100 text-emerald-800"
+  defp score_pill_classes(s) when is_number(s) and s >= 60, do: "bg-amber-100 text-amber-800"
+  defp score_pill_classes(_), do: "bg-rose-100 text-rose-800"
 
   defp qr_url(task) do
     host = ShowcaseWeb.Endpoint.config(:url)[:host] || "localhost"

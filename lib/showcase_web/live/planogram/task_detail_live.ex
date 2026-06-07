@@ -408,34 +408,103 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
     </div>
 
     <section :if={@rendered.rows != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-medium mb-3">Per-row breakdown</h2>
-      <.per_row_table rows={@rendered.rows} />
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="font-heading text-lg font-bold text-ink">Per-row breakdown</h2>
+        <p class="text-xs text-ink/60">
+          {length(@rendered.rows)} shelf {if length(@rendered.rows) == 1, do: "row", else: "rows"}
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        <div :for={row <- @rendered.rows} class={[
+          "rounded-xl border-l-4 bg-surface-lav-2/60 p-4",
+          row_card_classes(row.status_color)
+        ]}>
+          <div class="flex items-baseline justify-between gap-3 flex-wrap">
+            <h3 class="font-heading font-semibold text-ink">{row.name}</h3>
+            <span class={[
+              "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+              "bg-#{row.status_color}-100 text-#{row.status_color}-700"
+            ]}>
+              {row.status}
+            </span>
+          </div>
+
+          <div :if={row.found_products != []} class="mt-2 flex flex-wrap gap-1.5">
+            <span
+              :for={p <- row.found_products}
+              class="inline-flex items-center gap-1 rounded-md bg-white border border-line px-2 py-0.5 text-xs text-ink/80"
+            >
+              {p["name"]}
+              <span class="text-ink/50">×{p["qty"]}</span>
+            </span>
+          </div>
+
+          <ul :if={row.issues != []} class="mt-2 space-y-1 text-sm text-ink/70">
+            <li :for={iss <- row.issues} class="flex gap-2">
+              <span class="text-rose-500">•</span>
+              <span>{iss}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section :if={@rendered.issues != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-medium mb-3">Issues ({length(@rendered.issues)})</h2>
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="font-heading text-lg font-bold text-ink">Issues</h2>
+        <span class="rounded-full bg-rose-100 text-rose-700 px-2.5 py-0.5 text-xs font-bold">
+          {length(@rendered.issues)} found
+        </span>
+      </div>
+
       <ul class="space-y-3">
-        <li :for={iss <- @rendered.issues} class="flex gap-3 items-start">
-          <span class={[
-            "rounded px-2 py-0.5 text-xs uppercase tracking-wide",
-            severity_badge_classes(iss.severity_color)
-          ]}>
-            {iss.severity}
-          </span>
-          <div class="flex-1">
-            <div class="font-medium">{iss.type}</div>
-            <div class="text-sm text-ink/80">{iss.description}</div>
-            <div class="text-xs text-ink/60 mt-1">Impact: {iss.business_impact}</div>
+        <li :for={iss <- @rendered.issues} class={[
+          "rounded-xl border bg-white p-4 transition-shadow hover:shadow-sm",
+          issue_card_classes(iss.severity_color)
+        ]}>
+          <div class="flex items-start gap-3">
+            <span class={[
+              "inline-flex items-center rounded-md p-1.5 shrink-0",
+              issue_card_icon_classes(iss.severity_color)
+            ]}>
+              <.icon name={issue_icon(iss.type)} class="size-4" />
+            </span>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class={[
+                  "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                  severity_badge_classes(iss.severity_color)
+                ]}>
+                  {iss.severity}
+                </span>
+                <span class="font-mono text-xs text-ink/50">{iss.type}</span>
+              </div>
+              <p class="mt-1.5 text-sm text-ink/80 font-medium">{iss.description}</p>
+              <p :if={iss.business_impact != ""} class="mt-1.5 text-xs text-ink/60 italic">
+                Impact — {iss.business_impact}
+              </p>
+            </div>
           </div>
         </li>
       </ul>
     </section>
 
     <section :if={@rendered.suggestions != []} class="rounded-2xl border border-line bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-medium mb-3">Suggested actions</h2>
-      <ul class="list-disc list-inside text-sm text-ink/80 space-y-1">
-        <li :for={s <- @rendered.suggestions}>{s}</li>
-      </ul>
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="font-heading text-lg font-bold text-ink">Suggested actions</h2>
+        <span class="text-xs text-ink/60">{length(@rendered.suggestions)} step(s)</span>
+      </div>
+
+      <ol class="space-y-2">
+        <li :for={{s, i} <- Enum.with_index(@rendered.suggestions, 1)} class="flex gap-3 items-start">
+          <span class="inline-flex items-center justify-center shrink-0 rounded-full bg-purple text-white text-xs font-bold w-6 h-6">
+            {i}
+          </span>
+          <span class="text-sm text-ink/80 leading-relaxed pt-0.5">{s}</span>
+        </li>
+      </ol>
     </section>
 
     <.json_inspector data={@raw} />
@@ -467,6 +536,34 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
 
     "top: #{top_pct}%; left: #{left_pct}%;"
   end
+
+  # Per-row card left-border tint (matches the row's status color).
+  defp row_card_classes("emerald"), do: "border-emerald-400"
+  defp row_card_classes("amber"), do: "border-amber-400"
+  defp row_card_classes("rose"), do: "border-rose-400"
+  defp row_card_classes(_), do: "border-line"
+
+  # Issue card border tint (matches severity).
+  defp issue_card_classes("rose"), do: "border-rose-200"
+  defp issue_card_classes("amber"), do: "border-amber-200"
+  defp issue_card_classes("emerald"), do: "border-emerald-200"
+  defp issue_card_classes(_), do: "border-line"
+
+  # Issue card icon background tint.
+  defp issue_card_icon_classes("rose"), do: "bg-rose-100 text-rose-700"
+  defp issue_card_icon_classes("amber"), do: "bg-amber-100 text-amber-700"
+  defp issue_card_icon_classes("emerald"), do: "bg-emerald-100 text-emerald-700"
+  defp issue_card_icon_classes(_), do: "bg-surface-lav text-ink/70"
+
+  # Heroicon per issue type.
+  defp issue_icon("missing_product"), do: "hero-cube-transparent"
+  defp issue_icon("wrong_placement"), do: "hero-arrows-right-left"
+  defp issue_icon("wrong_qty"), do: "hero-calculator"
+  defp issue_icon("out_of_stock"), do: "hero-archive-box-x-mark"
+  defp issue_icon("unauthorized_item"), do: "hero-no-symbol"
+  defp issue_icon("photo_quality"), do: "hero-camera"
+  defp issue_icon("mismatch"), do: "hero-exclamation-triangle"
+  defp issue_icon(_), do: "hero-exclamation-circle"
 
   # Issue badge color classes — literal strings so Tailwind 4 can scan them.
   defp issue_badge_classes("missing_product"), do: "bg-rose-600 text-white"
