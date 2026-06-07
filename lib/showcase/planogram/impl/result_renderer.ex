@@ -117,22 +117,39 @@ defmodule Showcase.Planogram.Impl.ResultRenderer do
 
   # Normalize a bbox map. Accepts string or atom keys, returns
   # %{x: float, y: float, w: float, h: float} clamped to [0, 1], or nil
-  # if the input is missing/malformed.
+  # if the input is missing/malformed/clearly bogus.
+  #
+  # Rejects boxes that:
+  #   * have nil/non-numeric fields
+  #   * sit entirely below the visible shelf area (y >= 0.95)
+  #   * are degenerate (w or h < 0.005, i.e. < 0.5% of the photo)
+  #   * extend wildly outside the frame (y + h > 1.1 or x + w > 1.1)
   defp normalize_bbox(b) when is_map(b) do
     x = fetch_float(b, "x")
     y = fetch_float(b, "y")
     w = fetch_float(b, "w")
     h = fetch_float(b, "h")
 
-    if Enum.all?([x, y, w, h], &is_number/1) do
-      %{
-        x: clamp01(x),
-        y: clamp01(y),
-        w: clamp01(w),
-        h: clamp01(h)
-      }
-    else
-      nil
+    cond do
+      not Enum.all?([x, y, w, h], &is_number/1) ->
+        nil
+
+      y >= 0.95 ->
+        nil
+
+      w < 0.005 or h < 0.005 ->
+        nil
+
+      x + w > 1.1 or y + h > 1.1 ->
+        nil
+
+      true ->
+        %{
+          x: clamp01(x),
+          y: clamp01(y),
+          w: clamp01(w),
+          h: clamp01(h)
+        }
     end
   end
 

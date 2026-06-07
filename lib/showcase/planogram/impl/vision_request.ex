@@ -83,18 +83,28 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
     * "mismatch" — catch-all for other discrepancies
 
   CRITICAL — BOUNDING BOXES:
-    * `bbox` coordinates are NORMALIZED to the actual shelf photo (image 2 in
-      two-image mode; the single image in one-image mode), with the origin at
-      the top-left corner. x and y are the top-left of the box, w and h are
-      width and height. All four values MUST be floats in [0.0, 1.0].
-    * Make boxes TIGHT around the actual region — e.g. for a missing product
-      the bbox is the empty shelf gap where the product belongs; for a price
-      tag the bbox wraps just the price label, not the surrounding product.
-    * NEVER emit the same `bbox` twice. If the same physical price tag is
-      listed once, list it ONCE. Don't duplicate prices that appear once on
-      the shelf.
-    * If you cannot determine a precise bbox, use null instead of guessing.
-      Approximate row + horizontal_position are still required as fallback.
+    * Coordinates are NORMALIZED to the actual shelf photo (image 2 in
+      two-image mode; the single image in one-image mode).
+    * Origin (0, 0) is the TOP-LEFT corner of the visible photo.
+      Bottom-right corner is (1, 1). Y INCREASES DOWNWARD.
+    * (x, y) is the top-left corner of the box; (w, h) are width and
+      height. All four values MUST be floats in [0.0, 1.0].
+    * Calibration sanity-check before you respond: a label that should
+      appear on the TOP shelf has y between ~0.05 and ~0.30. MIDDLE
+      shelf is ~0.30 to ~0.65. BOTTOM shelf is ~0.65 to ~0.95. NEVER
+      emit y > 0.95 — that area is the floor / store carpet, not a
+      product zone. NEVER emit y < 0.0 — that's outside the image.
+    * For a price tag specifically: the bbox should wrap JUST the price
+      number itself (typically a tiny rectangle ~3-6% wide and ~2-3%
+      tall on the shelf edge below the products), not the product zone
+      above it. Center the bbox on the visible text.
+    * For a missing/out-of-stock product: the bbox is the empty shelf
+      GAP where the product belongs — typically about the size of one
+      product facing.
+    * Make boxes TIGHT. Don't inflate them to cover surrounding area.
+    * NEVER emit the same `bbox` twice for the same physical element.
+    * If you cannot determine a precise bbox, use `null`. Approximate
+      row + horizontal_position are still required as fallback.
 
   Output ONLY the JSON. No prose. No code fences.
   """

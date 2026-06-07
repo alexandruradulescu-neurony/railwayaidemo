@@ -290,21 +290,24 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             (no photo — bundled scenario was used)
           </div>
 
-          <%!-- Issue overlays: bounding box + label, with row/position fallback --%>
+          <%!-- Issue overlays: bounding box with label INSIDE at top-left so
+               the label always moves with its box, no matter how Claude's
+               y-coordinate lands. Falls back to a centered badge when no
+               bbox is returned. --%>
           <%= for iss <- @rendered.issues do %>
             <%= if iss.bbox do %>
               <div
                 class={[
-                  "absolute rounded-md border-2 border-dashed shadow-md",
+                  "absolute rounded-md border-2 border-dashed shadow-md overflow-visible",
                   issue_box_classes(iss.type)
                 ]}
                 style={bbox_style(iss.bbox)}
                 title={iss.description}
               >
                 <span class={[
-                  "absolute -top-3 left-1 inline-block",
-                  "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                  "shadow whitespace-nowrap",
+                  "absolute top-0 left-0 inline-block",
+                  "rounded-tl-md rounded-br-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                  "whitespace-nowrap",
                   issue_badge_classes(iss.type)
                 ]}>
                   {iss.badge}
@@ -326,21 +329,23 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
             <% end %>
           <% end %>
 
-          <%!-- Price overlays: dedupe by (text, bbox) so the same tag isn't drawn twice --%>
+          <%!-- Price overlays: smaller, subtler, anchored INSIDE the bbox so
+               they sit on top of the actual price label. --%>
           <%= for price <- dedupe_prices(@rendered.extracted_prices) do %>
             <%= if price.bbox do %>
               <span
-                class="absolute rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold shadow-md whitespace-nowrap ring-2 ring-blue-300"
+                class="absolute rounded bg-blue-600/95 text-white px-1.5 py-0 text-[10px] font-semibold whitespace-nowrap leading-tight shadow"
                 style={bbox_label_style(price.bbox)}
+                title={price.text}
               >
-                {price.text} ✓
+                {price.text}
               </span>
             <% else %>
               <span
-                class="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold shadow-md whitespace-nowrap"
+                class="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-blue-600/95 text-white px-1.5 py-0 text-[10px] font-semibold whitespace-nowrap leading-tight shadow"
                 style={overlay_style(price.row, price.horizontal_position, @max_row)}
               >
-                {price.text} ✓
+                {price.text}
               </span>
             <% end %>
           <% end %>
