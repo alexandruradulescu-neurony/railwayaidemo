@@ -4,17 +4,17 @@ defmodule Showcase.Planogram.Worker do
 
   Args: `%{"task_id" => integer, "max_tokens" => integer (optional)}`.
 
-  Reads the photo bytes from disk (either from the uploaded path or a
-  bundled scenario fallback under `priv/static/images/planogram/`) and
-  hands off to `VisionPipeline.analyze/2`.
+  Reads the shelf photo from disk (uploaded by Merchandiser or via the
+  mobile QR handoff) and the reference planogram image (uploaded by
+  Manager) and hands off to `VisionPipeline.analyze/2`. NO bundled
+  fallback images — if no shelf photo is uploaded, the pipeline fails
+  cleanly with `:no_photo_attached` so the AE knows to upload one.
   """
 
   use Oban.Worker, queue: :planogram, max_attempts: 3
 
   alias Showcase.Planogram.{VerificationTask, VisionPipeline}
   alias Showcase.Repo
-
-  @bundled_dir "priv/static/images/planogram"
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"task_id" => task_id} = args}) do
@@ -42,31 +42,17 @@ defmodule Showcase.Planogram.Worker do
   end
 
   # ── Shelf photo (the one being audited) ──────────────────────────────
+  # Returns the bytes if a real user-uploaded photo is on disk, else nil.
+  # NO bundled fallbacks — the pipeline must fail cleanly when there's no
+  # photo, rather than silently feed Claude a placeholder PNG.
 
-  defp read_photo(%VerificationTask{photo_path: "/uploads/" <> _ = path}) do
-    File.read!(Path.join("priv/static", path))
-  end
+  defp read_photo(%VerificationTask{photo_path: nil}), do: nil
 
   defp read_photo(%VerificationTask{photo_path: path}) when is_binary(path) do
-    File.read!(Path.join("priv/static", String.trim_leading(path, "/")))
-  rescue
-    _ -> bundled_shelf_fallback(nil)
-  end
-
-  defp read_photo(%VerificationTask{photo_path: nil, scenario: scenario}) do
-    bundled_shelf_fallback(scenario)
-  end
-
-  defp bundled_shelf_fallback(scenario) do
-    filename =
-      case scenario do
-        "compliant" -> "captured_compliant.png"
-        "minor_issues" -> "captured_minor_issues.png"
-        "major_issues" -> "captured_major_issues.png"
-        _ -> "captured_compliant.png"
-      end
-
-    safe_read(Path.join(@bundled_dir, filename))
+    case File.read(Path.join("priv/static", String.trim_leading(path, "/"))) do
+      {:ok, bytes} -> bytes
+      {:error, _} -> nil
+    end
   end
 
   # ── Reference planogram image ────────────────────────────────────────
@@ -84,15 +70,6 @@ defmodule Showcase.Planogram.Worker do
   defp read_reference(_), do: nil
 
   # ── helpers ──────────────────────────────────────────────────────────
-
-  defp safe_read(path) do
-    case File.read(path) do
-      {:ok, bytes} -> bytes
-      # Fallback to a minimal PNG header so dev/CI runs before real bundled
-      # images are committed.
-      {:error, _} -> <<137, 80, 78, 71, 13, 10, 26, 10>>
-    end
-  end
 
   defp safe_read_optional(path) do
     case File.read(path) do

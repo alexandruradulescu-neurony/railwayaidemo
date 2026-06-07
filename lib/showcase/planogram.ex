@@ -107,6 +107,38 @@ defmodule Showcase.Planogram do
     MobileHandoff.finalize_upload(task, image_bytes)
   end
 
+  @doc "Delete a verification task by id."
+  @spec delete_task(integer()) :: {:ok, VerificationTask.t()} | {:error, term()}
+  def delete_task(task_id) do
+    case Repo.get(VerificationTask, task_id) do
+      nil -> {:error, :not_found}
+      task -> Repo.delete(task)
+    end
+  end
+
+  @doc """
+  Delete a planogram + all its tasks. Removes the reference image from disk
+  if it lives under our uploads dir; bundled assets stay.
+  """
+  @spec delete_planogram(integer()) :: {:ok, Planogram.t()} | {:error, term()}
+  def delete_planogram(planogram_id) do
+    case Repo.get(Planogram, planogram_id) do
+      nil ->
+        {:error, :not_found}
+
+      pg ->
+        Repo.delete_all(from t in VerificationTask, where: t.planogram_id == ^pg.id)
+        maybe_delete_reference_image(pg.reference_image_path)
+        Repo.delete(pg)
+    end
+  end
+
+  defp maybe_delete_reference_image("/images/planogram/refs/" <> _ = rel) do
+    File.rm(Path.join("priv/static", String.trim_leading(rel, "/")))
+  end
+
+  defp maybe_delete_reference_image(_), do: :ok
+
   # ── helpers ───────────────────────────────────────────────────────────
 
   defp normalize_keys(attrs) when is_map(attrs) do

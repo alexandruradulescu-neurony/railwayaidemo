@@ -74,6 +74,10 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   end
 
   def handle_event("create_task", %{"task" => task_attrs}, socket) do
+    # Scenario is meaningless when running against real Claude; default to
+    # "compliant" so the existing changeset validation passes.
+    task_attrs = Map.put_new(task_attrs, "scenario", "compliant")
+
     case Planogram.create_task(task_attrs) do
       {:ok, _task} ->
         {:noreply,
@@ -82,9 +86,49 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
          |> assign(:planograms, Planogram.list_planograms())
          |> load_tasks()}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Could not create task.")}
+      {:error, changeset} ->
+        require Logger
+        Logger.error("create_task failed: #{inspect(changeset.errors)}")
+        msg = "Could not create task: #{format_changeset_errors(changeset)}"
+        {:noreply, put_flash(socket, :error, msg)}
     end
+  end
+
+  def handle_event("delete_task", %{"task_id" => task_id}, socket) do
+    {id, _} = Integer.parse(task_id)
+
+    case Planogram.delete_task(id) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Task deleted.")
+         |> load_tasks()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Could not delete task: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("delete_planogram", %{"planogram_id" => pg_id}, socket) do
+    {id, _} = Integer.parse(pg_id)
+
+    case Planogram.delete_planogram(id) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Planogram deleted (and all its tasks).")
+         |> assign(:planograms, Planogram.list_planograms())
+         |> load_tasks()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Could not delete planogram: #{inspect(reason)}")}
+    end
+  end
+
+  defp format_changeset_errors(%Ecto.Changeset{errors: errors}) do
+    errors
+    |> Enum.map(fn {field, {msg, _opts}} -> "#{field} #{msg}" end)
+    |> Enum.join(", ")
   end
 
   def handle_event("validate_planogram", _params, socket), do: {:noreply, socket}
@@ -156,11 +200,18 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
       </header>
 
       <main class="max-w-7xl mx-auto px-6 py-6">
+        <div :if={@flash["info"]} class="mb-4 rounded border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+          {@flash["info"]}
+        </div>
+        <div :if={@flash["error"]} class="mb-4 rounded border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+          {@flash["error"]}
+        </div>
+
         <%= case @role do %>
           <% "merchandiser" -> %>
             <.render_merchandiser buckets={@buckets} active_qr_task_id={@active_qr_task_id} />
           <% "manager" -> %>
-            <.render_manager planograms={@planograms} uploads={@uploads} />
+            <.render_manager planograms={@planograms} uploads={@uploads} buckets={@buckets} />
           <% "admin" -> %>
             <.render_admin />
         <% end %>
@@ -308,115 +359,191 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
 
   attr :planograms, :list, required: true
   attr :uploads, :map, required: true
+  attr :buckets, :map, required: true
 
   defp render_manager(assigns) do
-    ~H"""
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section class="rounded border bg-white p-4">
-        <h2 class="text-lg font-medium mb-3">Existing planograms</h2>
-        <ul :if={@planograms != []} class="divide-y">
-          <li :for={pg <- @planograms} class="py-2 flex gap-3 items-start">
-            <img
-              :if={pg.reference_image_path}
-              src={pg.reference_image_path}
-              alt={pg.name}
-              class="w-12 h-12 object-cover rounded border bg-zinc-50 flex-shrink-0"
-            />
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{pg.name}</div>
-              <div class="text-xs text-zinc-500 truncate">{pg.description}</div>
-            </div>
-          </li>
-        </ul>
-        <p :if={@planograms == []} class="text-sm text-zinc-500">
-          No planograms yet — upload one on the right.
-        </p>
-      </section>
+    all_tasks =
+      [
+        assigns.buckets.overdue,
+        assigns.buckets.today,
+        assigns.buckets.tomorrow,
+        assigns.buckets.later,
+        assigns.buckets.done
+      ]
+      |> List.flatten()
 
-      <section class="rounded border bg-white p-4">
-        <h2 class="text-lg font-medium mb-3">Add planogram</h2>
-        <form
-          phx-submit="create_planogram"
-          phx-change="validate_planogram"
-          class="space-y-3"
-        >
-          <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Name</label>
-            <input name="planogram[name]" required class="w-full rounded border px-3 py-2" />
-          </div>
-          <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Description</label>
-            <textarea
-              name="planogram[description]"
-              rows="2"
-              class="w-full rounded border px-3 py-2"
-            ></textarea>
-          </div>
-          <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">
-              Reference image
-            </label>
-            <.live_file_input upload={@uploads.reference} class="block w-full text-sm" />
-            <div
-              :for={entry <- @uploads.reference.entries}
-              class="text-xs text-zinc-600 mt-1"
-            >
-              {entry.client_name} — {entry.progress}%
-              <div
-                :for={err <- upload_errors(@uploads.reference, entry)}
-                class="text-rose-600"
-              >
-                {upload_error_to_string(err)}
+    assigns = assign(assigns, :all_tasks, all_tasks)
+
+    ~H"""
+    <div class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="rounded border bg-white p-4">
+          <h2 class="text-lg font-medium mb-3">Existing planograms</h2>
+          <ul :if={@planograms != []} class="divide-y">
+            <li :for={pg <- @planograms} class="py-2 flex gap-3 items-start">
+              <img
+                :if={pg.reference_image_path}
+                src={pg.reference_image_path}
+                alt={pg.name}
+                class="w-12 h-12 object-cover rounded border bg-zinc-50 flex-shrink-0"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="font-medium truncate">{pg.name}</div>
+                <div class="text-xs text-zinc-500 truncate">{pg.description}</div>
               </div>
-            </div>
-            <p class="text-xs text-zinc-400 mt-1">PNG/JPEG, max 5 MB.</p>
-          </div>
-          <button
-            type="submit"
-            disabled={@uploads.reference.entries == []}
-            class="w-full rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Save planogram
-          </button>
-          <p :if={@uploads.reference.entries == []} class="text-xs text-zinc-500 mt-1">
-            Attach a reference image to enable save.
+              <button
+                type="button"
+                phx-click="delete_planogram"
+                phx-value-planogram_id={pg.id}
+                data-confirm={"Delete planogram \"#{pg.name}\" and all its tasks?"}
+                class="text-xs text-rose-600 hover:text-rose-800 underline flex-shrink-0"
+              >
+                Delete
+              </button>
+            </li>
+          </ul>
+          <p :if={@planograms == []} class="text-sm text-zinc-500">
+            No planograms yet — upload one on the right.
           </p>
-        </form>
-      </section>
+        </section>
+
+        <section class="rounded border bg-white p-4">
+          <h2 class="text-lg font-medium mb-3">Add planogram</h2>
+          <form
+            phx-submit="create_planogram"
+            phx-change="validate_planogram"
+            class="space-y-3"
+          >
+            <div>
+              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Name</label>
+              <input name="planogram[name]" required class="w-full rounded border px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Description</label>
+              <textarea
+                name="planogram[description]"
+                rows="2"
+                class="w-full rounded border px-3 py-2"
+              ></textarea>
+            </div>
+            <div>
+              <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">
+                Reference image
+              </label>
+              <.live_file_input upload={@uploads.reference} class="block w-full text-sm" />
+              <div
+                :for={entry <- @uploads.reference.entries}
+                class="text-xs text-zinc-600 mt-1"
+              >
+                {entry.client_name} — {entry.progress}%
+                <div
+                  :for={err <- upload_errors(@uploads.reference, entry)}
+                  class="text-rose-600"
+                >
+                  {upload_error_to_string(err)}
+                </div>
+              </div>
+              <p class="text-xs text-zinc-400 mt-1">PNG/JPEG, max 5 MB.</p>
+            </div>
+            <button
+              type="submit"
+              disabled={@uploads.reference.entries == []}
+              class="w-full rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save planogram
+            </button>
+            <p :if={@uploads.reference.entries == []} class="text-xs text-zinc-500 mt-1">
+              Attach a reference image to enable save.
+            </p>
+          </form>
+        </section>
+      </div>
 
       <section class="rounded border bg-white p-4">
         <h2 class="text-lg font-medium mb-3">Create task</h2>
-        <form phx-submit="create_task" class="space-y-3">
+        <p :if={@planograms == []} class="text-sm text-rose-700 mb-3">
+          Add a planogram first.
+        </p>
+        <form :if={@planograms != []} phx-submit="create_task" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
           <div>
             <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Store</label>
-            <input name="task[store_name]" required class="w-full rounded border px-3 py-2" />
+            <input
+              name="task[store_name]"
+              required
+              class="w-full rounded border px-3 py-2"
+              placeholder="e.g. Bucharest Mall"
+            />
           </div>
           <div>
             <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Planogram</label>
-            <select name="task[planogram_id]" class="w-full rounded border px-3 py-2">
+            <select name="task[planogram_id]" required class="w-full rounded border px-3 py-2">
               <option :for={pg <- @planograms} value={pg.id}>{pg.name}</option>
             </select>
           </div>
           <div>
             <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Due date</label>
-            <input name="task[due_date]" type="date" required class="w-full rounded border px-3 py-2" />
-            <p class="mt-1 text-xs text-zinc-400">Past dates allowed (demo overdue treatment).</p>
+            <input
+              name="task[due_date]"
+              type="date"
+              required
+              class="w-full rounded border px-3 py-2"
+            />
           </div>
-          <div>
-            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Scenario</label>
-            <select name="task[scenario]" class="w-full rounded border px-3 py-2">
-              <option value="compliant">compliant</option>
-              <option value="minor_issues">minor_issues</option>
-              <option value="major_issues">major_issues</option>
-            </select>
+          <div class="md:col-span-3">
+            <button
+              type="submit"
+              class="w-full md:w-auto rounded bg-purple px-4 py-3 text-base font-semibold text-white hover:opacity-90"
+            >
+              Create task
+            </button>
           </div>
-          <button
-            type="submit"
-            class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            Create task
-          </button>
         </form>
+      </section>
+
+      <section class="rounded border bg-white p-4">
+        <h2 class="text-lg font-medium mb-3">All tasks ({length(@all_tasks)})</h2>
+        <p :if={@all_tasks == []} class="text-sm text-zinc-500">
+          No tasks yet — create one above.
+        </p>
+        <table :if={@all_tasks != []} class="w-full text-sm">
+          <thead class="text-xs uppercase tracking-wide text-zinc-500">
+            <tr>
+              <th class="text-left py-2">Store</th>
+              <th class="text-left py-2">Planogram</th>
+              <th class="text-left py-2">Due</th>
+              <th class="text-left py-2">Status</th>
+              <th class="text-right py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <tr :for={task <- @all_tasks}>
+              <td class="py-2 font-medium">{task.store_name}</td>
+              <td class="py-2 text-zinc-600">
+                {task.planogram && task.planogram.name}
+              </td>
+              <td class="py-2 text-zinc-600">{task.due_date}</td>
+              <td class="py-2">
+                <span class={["rounded px-2 py-0.5 text-xs", status_classes(task.status)]}>
+                  {task.status}
+                </span>
+              </td>
+              <td class="py-2 text-right space-x-3">
+                <a href={"/planogram/#{task.id}"} class="text-xs text-zinc-700 underline hover:text-zinc-900">
+                  Open
+                </a>
+                <button
+                  type="button"
+                  phx-click="delete_task"
+                  phx-value-task_id={task.id}
+                  data-confirm={"Delete task \"#{task.store_name}\"?"}
+                  class="text-xs text-rose-600 hover:text-rose-800 underline"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </div>
     """
