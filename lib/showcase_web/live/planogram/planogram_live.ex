@@ -32,6 +32,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
      |> assign(:role, "merchandiser")
      |> assign(:active_qr_task_id, nil)
      |> assign(:planograms, Planogram.list_planograms())
+     |> allow_upload(:reference,
+       accept: ~w(.png .jpg .jpeg),
+       max_entries: 1,
+       max_file_size: 5_000_000
+     )
      |> load_tasks()}
   end
 
@@ -82,6 +87,32 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     end
   end
 
+  def handle_event("validate_planogram", _params, socket), do: {:noreply, socket}
+
+  def handle_event("create_planogram", %{"planogram" => attrs}, socket) do
+    uploaded =
+      consume_uploaded_entries(socket, :reference, fn %{path: tmp}, _entry ->
+        {:ok, File.read!(tmp)}
+      end)
+
+    case uploaded do
+      [bytes] ->
+        case Planogram.create_planogram_with_reference(attrs, bytes) do
+          {:ok, _pg} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Planogram added.")
+             |> assign(:planograms, Planogram.list_planograms())}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not save planogram.")}
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Please attach a reference image.")}
+    end
+  end
+
   @impl true
   def handle_info({:planogram, _phase, _task_id}, socket) do
     {:noreply, load_tasks(socket)}
@@ -129,7 +160,7 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
           <% "merchandiser" -> %>
             <.render_merchandiser buckets={@buckets} active_qr_task_id={@active_qr_task_id} />
           <% "manager" -> %>
-            <.render_manager planograms={@planograms} />
+            <.render_manager planograms={@planograms} uploads={@uploads} />
           <% "admin" -> %>
             <.render_admin />
         <% end %>
@@ -276,18 +307,77 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
   defp status_classes(_), do: "bg-zinc-100"
 
   attr :planograms, :list, required: true
+  attr :uploads, :map, required: true
 
   defp render_manager(assigns) do
     ~H"""
-    <div class="grid grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <section class="rounded border bg-white p-4">
         <h2 class="text-lg font-medium mb-3">Existing planograms</h2>
-        <ul class="divide-y">
-          <li :for={pg <- @planograms} class="py-2">
-            <div class="font-medium">{pg.name}</div>
-            <div class="text-xs text-zinc-500">{pg.description}</div>
+        <ul :if={@planograms != []} class="divide-y">
+          <li :for={pg <- @planograms} class="py-2 flex gap-3 items-start">
+            <img
+              :if={pg.reference_image_path}
+              src={pg.reference_image_path}
+              alt={pg.name}
+              class="w-12 h-12 object-cover rounded border bg-zinc-50 flex-shrink-0"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="font-medium truncate">{pg.name}</div>
+              <div class="text-xs text-zinc-500 truncate">{pg.description}</div>
+            </div>
           </li>
         </ul>
+        <p :if={@planograms == []} class="text-sm text-zinc-500">
+          No planograms yet — upload one on the right.
+        </p>
+      </section>
+
+      <section class="rounded border bg-white p-4">
+        <h2 class="text-lg font-medium mb-3">Add planogram</h2>
+        <form
+          phx-submit="create_planogram"
+          phx-change="validate_planogram"
+          class="space-y-3"
+        >
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Name</label>
+            <input name="planogram[name]" required class="w-full rounded border px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Description</label>
+            <textarea
+              name="planogram[description]"
+              rows="2"
+              class="w-full rounded border px-3 py-2"
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-zinc-500 mb-1">
+              Reference image
+            </label>
+            <.live_file_input upload={@uploads.reference} class="block w-full text-sm" />
+            <div
+              :for={entry <- @uploads.reference.entries}
+              class="text-xs text-zinc-600 mt-1"
+            >
+              {entry.client_name} — {entry.progress}%
+              <div
+                :for={err <- upload_errors(@uploads.reference, entry)}
+                class="text-rose-600"
+              >
+                {upload_error_to_string(err)}
+              </div>
+            </div>
+            <p class="text-xs text-zinc-400 mt-1">PNG/JPEG, max 5 MB.</p>
+          </div>
+          <button
+            type="submit"
+            class="rounded bg-neurony-600 px-3 py-2 text-sm font-medium text-white hover:bg-neurony-700"
+          >
+            Save planogram
+          </button>
+        </form>
       </section>
 
       <section class="rounded border bg-white p-4">
@@ -327,6 +417,11 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
     </div>
     """
   end
+
+  defp upload_error_to_string(:too_large), do: "File too large (max 5 MB)."
+  defp upload_error_to_string(:not_accepted), do: "Unsupported file type (.png, .jpg)."
+  defp upload_error_to_string(:too_many_files), do: "Only one file allowed."
+  defp upload_error_to_string(_), do: "Upload error."
 
   defp render_admin(assigns) do
     ~H"""

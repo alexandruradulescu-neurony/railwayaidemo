@@ -21,26 +21,83 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLiveTest do
       assert html =~ "Run analysis"
       assert html =~ "pending"
     end
+
+    test "shows reference planogram image + shelf upload form", %{conn: conn} do
+      task = a_task("compliant") |> Repo.preload(:planogram)
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "Reference planogram"
+      assert html =~ "Upload shelf photo"
+      assert html =~ task.planogram.reference_image_path
+    end
+
+    test "uploading a shelf photo updates the task's photo_path", %{conn: conn} do
+      task = a_task("compliant")
+      {:ok, view, _html} = live(conn, "/planogram/#{task.id}")
+
+      png_bytes = <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0>>
+
+      photo =
+        file_input(view, "form[phx-submit='upload_shelf']", :shelf, [
+          %{
+            last_modified: 1_700_000_000_000,
+            name: "shelf.png",
+            content: png_bytes,
+            type: "image/png"
+          }
+        ])
+
+      assert render_upload(photo, "shelf.png") =~ "shelf.png"
+
+      view
+      |> form("form[phx-submit='upload_shelf']")
+      |> render_submit()
+
+      updated = Repo.get!(VerificationTask, task.id)
+      assert updated.photo_path =~ "/uploads/planogram/"
+    end
   end
 
   describe "complete task" do
-    test "renders compliance gauge, per-row, issues, suggestions, cost badge", %{conn: conn} do
+    test "renders compliance gauge, per-row, suggestions, cost badge", %{conn: conn} do
       task = a_task("compliant") |> run_to_completion()
 
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
       assert html =~ "96%"                          # gauge
       assert html =~ "Top shelf"                    # per-row
-      assert html =~ "Shelf matches planogram"      # exec summary
+      assert html =~ "matches"                      # exec summary (model-agnostic wording)
       assert html =~ "no action needed"             # suggestion
       assert html =~ "tok"                          # CostBadge
       assert html =~ "Raw JSON"                     # JSONInspector
     end
 
-    test "major_issues result renders high-severity issue rows", %{conn: conn} do
+    test "major_issues result renders high-severity issues + out-of-stock", %{conn: conn} do
       task = a_task("major_issues") |> run_to_completion()
       {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
-      assert html =~ "Sprite 500ml MISSING"
-      assert html =~ "high"
+      assert html =~ "high"            # severity
+      assert html =~ "out_of_stock"    # new categorized issue type
+    end
+
+    test "renders stats sidebar (Mismatches Found, Price Tags Verified)", %{conn: conn} do
+      task = a_task("minor_issues") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "Compliance Score"
+      assert html =~ "Mismatches Found"
+      assert html =~ "Price Tags Verified"
+      assert html =~ "AI Analysis"
+    end
+
+    test "renders extracted price overlay badges with RON values", %{conn: conn} do
+      task = a_task("compliant") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      assert html =~ "RON 15.99"
+      assert html =~ "Shelf compliance"
+    end
+
+    test "renders issue overlay badges with type labels", %{conn: conn} do
+      task = a_task("major_issues") |> run_to_completion()
+      {:ok, _view, html} = live(conn, "/planogram/#{task.id}")
+      # ResultRenderer.issue_badge/1 maps types → UPPERCASE labels
+      assert html =~ "OUT OF STOCK"
     end
   end
 
