@@ -7,12 +7,7 @@ defmodule ShowcaseWeb.InvoiceApproval.QueueLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) and
-         Application.get_env(:showcase, :anthropic_client_impl) ==
-           Showcase.Common.AnthropicClient.Mock do
-      InvoiceApproval.register_mock_responses()
-    end
-
+    # Mock registration moved to Application.start (REVIEW.md MED-03).
     {:ok,
      socket
      |> assign(:page_title, "Invoice Approval")

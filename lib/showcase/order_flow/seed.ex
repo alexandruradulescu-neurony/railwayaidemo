@@ -341,14 +341,7 @@ defmodule Showcase.OrderFlow.Seed do
           :ok
 
         %Product{} = product ->
-          existing =
-            Repo.one(
-              from a in ProductAlias,
-                where:
-                  a.normalized_text == ^alias_text and
-                    a.product_id == ^product.id and
-                    is_nil(a.client_id)
-            )
+          existing = Showcase.OrderFlow.find_global_alias(alias_text, product.id)
 
           unless existing do
             %ProductAlias{}

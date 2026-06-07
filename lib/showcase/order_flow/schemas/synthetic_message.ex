@@ -45,8 +45,15 @@ defmodule Showcase.OrderFlow.Schemas.SyntheticMessage do
   body text is a valid use case ("here's the order, see attached").
   """
   def compose_changeset(msg, attrs) do
+    # `:attachment_paths` is NOT cast from `attrs` — a hand-crafted POST to a
+    # websocket event could otherwise inject arbitrary path strings, and
+    # `Extraction` would dutifully try to read them as PDFs. The LiveView
+    # passes the consumed-upload paths via the dedicated `attachment_paths`
+    # atom key (form params are string-keyed, so they can't collide with the
+    # atom lookup below). See REVIEW.md MED-07.
     msg
-    |> cast(attrs, [:body, :subject, :from_address, :attachment_paths])
+    |> cast(attrs, [:body, :subject, :from_address])
+    |> put_change(:attachment_paths, Map.get(attrs, :attachment_paths, []))
     |> put_change(:kind, "email")
     |> put_change(:composed, true)
     |> put_change(:scenario, nil)

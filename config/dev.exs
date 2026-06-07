@@ -23,7 +23,13 @@ config :showcase, ShowcaseWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "bDtWnUajbGo/ijVmUdcEy6Wzd1ONMcW1cqXUbOBNqmmj3q9Bs7rr5G0g+JdPpC/d",
+  # Dev-only key. Used to sign session cookies on localhost — has no
+  # security implication outside dev. Prod reads SECRET_KEY_BASE from env
+  # (see config/runtime.exs). Override via `SECRET_KEY_BASE=...` if you
+  # care about it being unique per dev machine.
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") ||
+      "DEV-ONLY-NOT-FOR-PROD-1234567890123456789012345678901234567890123456789012345",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:showcase, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:showcase, ~w(--watch)]}

@@ -116,7 +116,8 @@ defmodule Showcase.InvoiceApproval.Seed do
               default_thresholds: %{"price_pct" => 5.0, "qty_pct" => 2.0, "date_days" => 3},
               valid_from: ~D[2026-01-01],
               valid_until: ~D[2026-12-31],
-              contract_number: "CTR-2026-#{:io_lib.format("~4..0B", [:erlang.phash2(contract_name, 10_000)]) |> List.to_string()}",
+              contract_number:
+                "CTR-2026-#{contract_name |> :erlang.phash2(10_000) |> to_string() |> String.pad_leading(4, "0")}",
               currency: "RON"
             })
             |> Repo.insert!()

@@ -27,19 +27,10 @@ defmodule ShowcaseWeb.Admin.AuditLogLive do
      |> assign(:entries, load_entries(demo))}
   end
 
-  defp load_entries(nil) do
-    AuditLog
-    |> Ash.read!()
-    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-    |> Enum.take(@page_size)
-  end
-
-  defp load_entries(demo) when is_binary(demo) do
-    AuditLog
-    |> Ash.read!()
-    |> Enum.filter(&(&1.demo == demo))
-    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-    |> Enum.take(@page_size)
+  defp load_entries(demo) do
+    # Filter + sort + limit pushed to the DB (Ash :list_recent action),
+    # backed by an index on (demo, inserted_at). See REVIEW.md MED-02.
+    AuditLog.list_recent!(%{demo: demo, limit: @page_size})
   end
 
   defp distinct_demos do

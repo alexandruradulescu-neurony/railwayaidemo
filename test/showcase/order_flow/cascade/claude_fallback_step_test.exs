@@ -1,5 +1,7 @@
 defmodule Showcase.OrderFlow.Cascade.ClaudeFallbackStepTest do
-  use Showcase.DataCase, async: true
+  # Mock is process-global; concurrent test files calling Mock.reset()
+  # would race with our Mock.register here. See REVIEW-FINAL.md HI-A.
+  use Showcase.DataCase, async: false
 
   alias Showcase.Common.AnthropicClient.Mock
   alias Showcase.OrderFlow.Cascade.ClaudeFallbackStep

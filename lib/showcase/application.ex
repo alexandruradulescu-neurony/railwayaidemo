@@ -22,7 +22,22 @@ defmodule Showcase.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Showcase.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+
+    # When the configured AnthropicClient impl is the Mock (tests + dev
+    # with no API key), register every demo's scripted responses on boot
+    # so individual LiveView mounts don't have to. Live impl skips this.
+    # See REVIEW.md MED-03.
+    if Application.get_env(:showcase, :anthropic_client_impl) ==
+         Showcase.Common.AnthropicClient.Mock do
+      Showcase.OrderFlow.register_mock_responses()
+      Showcase.InvoiceApproval.register_mock_responses()
+      Showcase.RecruitFlow.register_mock_responses()
+      Showcase.Planogram.MockPrompts.register_all()
+      Showcase.RestaurantCompliance.MockPrompts.register_all()
+    end
+
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration

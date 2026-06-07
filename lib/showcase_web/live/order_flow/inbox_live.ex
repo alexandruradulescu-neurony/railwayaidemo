@@ -14,13 +14,8 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      if Application.get_env(:showcase, :anthropic_client_impl) ==
-           Showcase.Common.AnthropicClient.Mock do
-        OrderFlow.register_mock_responses()
-      end
-    end
-
+    # Mock registration moved to Application.start (REVIEW.md MED-03) — no
+    # need to re-register per-mount.
     {:ok,
      socket
      |> assign(:page_title, "OrderFlow")
@@ -184,14 +179,7 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
       )
 
     if AliasPromotion.eligible_for_global?(entries) do
-      existing_global =
-        Repo.one(
-          from a in ProductAlias,
-            where:
-              a.normalized_text == ^normalized_text and
-                a.product_id == ^product_id and
-                is_nil(a.client_id)
-        )
+      existing_global = OrderFlow.find_global_alias(normalized_text, product_id)
 
       unless existing_global do
         avg_confidence =
@@ -282,8 +270,14 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
   end
 
   def handle_event("send_to_erp", _, socket) do
+    # Guard against a nervous demo-day double-click. The button is hidden
+    # on `status == "sent_to_erp"` but a click can land in the window
+    # between handler-start and re-render. REVIEW-FINAL.md HI-B.
     case socket.assigns.active_order do
       nil ->
+        {:noreply, socket}
+
+      %{status: "sent_to_erp"} ->
         {:noreply, socket}
 
       order ->
@@ -1083,8 +1077,7 @@ defmodule ShowcaseWeb.OrderFlow.InboxLive do
 
   defp display_subject(%{subject: subj}) when is_binary(subj) and subj != "", do: subj
 
-  defp display_subject(%{body: body, attachment_paths: paths})
-       when is_binary(body) and body != "" do
+  defp display_subject(%{body: body}) when is_binary(body) and body != "" do
     String.slice(body, 0, 60)
   end
 
