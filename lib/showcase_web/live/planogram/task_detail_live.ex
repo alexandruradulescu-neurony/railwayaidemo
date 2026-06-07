@@ -281,16 +281,21 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
         <h2 class="text-lg font-medium mb-3">Shelf compliance</h2>
         <div class="relative rounded overflow-hidden bg-surface-lav">
           <img
-            :if={@task.photo_path}
+            :if={photo_on_disk?(@task.photo_path)}
             src={@task.photo_path}
             alt="Audited shelf"
             class="w-full h-auto block"
           />
           <div
-            :if={!@task.photo_path}
-            class="aspect-[4/3] flex items-center justify-center text-sm text-ink/50"
+            :if={!photo_on_disk?(@task.photo_path)}
+            class="aspect-[4/3] flex items-center justify-center text-sm text-ink/50 px-4 text-center"
           >
-            (no photo — bundled scenario was used)
+            <%= if @task.photo_path do %>
+              Photo file is no longer on disk ({@task.photo_path}).
+              <br />Re-upload the shelf photo to see overlays.
+            <% else %>
+              (no photo — bundled scenario was used)
+            <% end %>
           </div>
 
           <%!-- Issue overlays: bounding box with label INSIDE at top-left so
@@ -588,6 +593,19 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   defp issue_box_classes("photo_quality"), do: "border-zinc-600/90 bg-zinc-600/10"
   defp issue_box_classes("mismatch"), do: "border-rose-500/90 bg-rose-500/10"
   defp issue_box_classes(_), do: "border-zinc-600/90 bg-zinc-600/10"
+
+  # Render-time check: does the file backing `photo_path` actually exist
+  # on disk? Defends against the case where the DB has a path but the
+  # file got wiped (e.g. test suite's `clear_uploads/0` runs on the
+  # shared filesystem, or `mix ecto.reset` between sessions). Avoids a
+  # broken-image 404 on demo day.
+  defp photo_on_disk?(nil), do: false
+
+  defp photo_on_disk?("/" <> rel) do
+    File.exists?(Path.join("priv/static", rel))
+  end
+
+  defp photo_on_disk?(_), do: false
 
   # Bounding-box positioning — converts a normalized %{x, y, w, h} (0-1
   # floats) to inline CSS percentages over the relatively-positioned image.

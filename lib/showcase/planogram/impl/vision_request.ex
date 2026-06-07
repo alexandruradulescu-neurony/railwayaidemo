@@ -87,13 +87,20 @@ defmodule Showcase.Planogram.Impl.VisionRequest do
       two-image mode; the single image in one-image mode).
     * Origin (0, 0) is the TOP-LEFT corner of the visible photo.
       Bottom-right corner is (1, 1). Y INCREASES DOWNWARD.
-    * (x, y) is the top-left corner of the box; (w, h) are width and
-      height. All four values MUST be floats in [0.0, 1.0].
+    * (x, y) is the TOP-LEFT corner of the box — NOT the center, NOT
+      the bottom. (w, h) are width and height. All four values MUST be
+      floats in [0.0, 1.0]. To wrap an element visually spanning rows
+      i through j of N total rows, set y = (i-1)/N and h = (j-i+1)/N.
+      Example: a 6-row pharmacy planogram, row 3, gives y ≈ 0.33, h ≈ 0.17.
     * Calibration sanity-check before you respond: a label that should
-      appear on the TOP shelf has y between ~0.05 and ~0.30. MIDDLE
-      shelf is ~0.30 to ~0.65. BOTTOM shelf is ~0.65 to ~0.95. NEVER
+      appear on the TOP shelf has y between ~0.00 and ~0.18. For a
+      planogram with N rows, row i's top edge is at y ≈ (i-1)/N. NEVER
       emit y > 0.95 — that area is the floor / store carpet, not a
       product zone. NEVER emit y < 0.0 — that's outside the image.
+    * COMMON BIAS TO AVOID: Sonnet vision tends to over-estimate y
+      (places boxes too low). When in doubt, ALWAYS pick the SMALLER
+      y value — a slightly-too-high box is salvageable; a too-low box
+      misses its target entirely.
     * For a price tag specifically: the bbox should wrap JUST the price
       number itself (typically a tiny rectangle ~3-6% wide and ~2-3%
       tall on the shelf edge below the products), not the product zone

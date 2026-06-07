@@ -94,10 +94,17 @@ defmodule Showcase.RestaurantCompliance.Seed do
     )
   end
 
-  defp clear_uploads do
-    upload_dir = "priv/static/uploads/restaurant_compliance"
-    File.rm_rf!(upload_dir)
-    File.mkdir_p!(upload_dir)
+  # Filesystem is shared with :test (sandbox isolates DB only). Skip
+  # the wipe in test env so the dev uploads dir survives `mix test`.
+  # Mix.env() is resolved at COMPILE time.
+  if Mix.env() == :test do
+    defp clear_uploads, do: :ok
+  else
+    defp clear_uploads do
+      upload_dir = "priv/static/uploads/restaurant_compliance"
+      File.rm_rf!(upload_dir)
+      File.mkdir_p!(upload_dir)
+    end
   end
 
   defp upsert_ruleset do
