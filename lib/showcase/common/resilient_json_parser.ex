@@ -18,12 +18,34 @@ defmodule Showcase.Common.ResilientJSONParser do
   @spec parse(binary()) ::
           {:ok, term(), :complete | :partial} | {:error, term()}
   def parse(input) when is_binary(input) do
-    case Jason.decode(input) do
+    cleaned = strip_code_fences(input)
+
+    case Jason.decode(cleaned) do
       {:ok, value} ->
         {:ok, value, :complete}
 
       {:error, _reason} ->
-        salvage(input)
+        salvage(cleaned)
+    end
+  end
+
+  # Strip markdown code fences that some models wrap around JSON output
+  # despite system-prompt instructions to the contrary. Handles:
+  #   ```json\n...\n```      → ...
+  #   ```\n...\n```          → ...
+  #   leading/trailing whitespace either way
+  defp strip_code_fences(input) do
+    trimmed = String.trim(input)
+
+    cond do
+      String.starts_with?(trimmed, "```") ->
+        trimmed
+        |> String.replace(~r/\A```(?:json|javascript|js)?\s*\n/i, "", global: false)
+        |> String.replace(~r/\n```\s*\z/, "", global: false)
+        |> String.trim()
+
+      true ->
+        trimmed
     end
   end
 
