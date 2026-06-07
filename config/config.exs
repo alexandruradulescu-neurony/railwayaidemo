@@ -74,7 +74,8 @@ config :showcase, Oban,
     order_flow: 5,
     recruit_flow: 5,
     planogram: 5,
-    invoice_approval: 5
+    invoice_approval: 5,
+    restaurant_compliance: 5
   ],
   plugins: [
     Oban.Plugins.Pruner,
