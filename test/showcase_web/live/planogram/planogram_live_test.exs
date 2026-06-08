@@ -36,9 +36,19 @@ defmodule ShowcaseWeb.Planogram.PlanogramLiveTest do
     end
 
     test "Run analysis enqueues an Oban job", %{conn: conn} do
+      # The "Run analysis" button only renders when the task has a
+      # `photo_path` (otherwise the worker would fail with :no_photo_attached
+      # and leave the operator stuck). Set one on the first task before
+      # mounting the LV so the button appears.
+      task =
+        Showcase.Planogram.list_tasks()
+        |> hd()
+        |> Showcase.Planogram.VerificationTask.changeset(%{
+          photo_path: "/uploads/planogram/test-shelf.png"
+        })
+        |> Showcase.Repo.update!()
+
       {:ok, view, _html} = live(conn, "/planogram")
-      # Pick the first task's "Run analysis" button via its phx-value-task_id
-      task = Showcase.Planogram.list_tasks() |> hd()
 
       view
       |> element("button[phx-click='run_analysis'][phx-value-task_id='#{task.id}']")
