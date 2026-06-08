@@ -351,8 +351,14 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
         >
           View results
         </a>
+        <%!--
+          "Run analysis" only when a photo is attached — otherwise the
+          worker fails with :no_photo_attached and the UI gets stuck on
+          a failed status with no recovery action. When there's no photo,
+          send the operator to the task detail page where they can upload.
+        --%>
         <button
-          :if={@task.status != "complete"}
+          :if={@task.status != "complete" and @task.photo_path}
           type="button"
           phx-click="run_analysis"
           phx-value-task_id={@task.id}
@@ -361,6 +367,13 @@ defmodule ShowcaseWeb.Planogram.PlanogramLive do
         >
           Run analysis
         </button>
+        <a
+          :if={@task.status != "complete" and !@task.photo_path}
+          href={"/planogram/#{@task.id}"}
+          class="rounded-lg bg-purple px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          Upload photo →
+        </a>
         <button
           type="button"
           phx-click="toggle_qr"
