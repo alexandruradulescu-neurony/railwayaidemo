@@ -66,6 +66,13 @@ config :showcase,
   admin_user: System.get_env("ADMIN_USER") || "admin",
   admin_pass: System.get_env("ADMIN_PASS") || "changeme"
 
+# Where on disk uploads are stored AND served from. In dev this is the
+# repo-relative `priv/static/uploads`. On Railway, set `UPLOADS_ROOT=
+# /app/priv/static/uploads` to match the volume mount path so files
+# uploaded by users persist + are visible via the `/uploads/...` URL.
+config :showcase,
+  uploads_root: System.get_env("UPLOADS_ROOT") || "priv/static/uploads"
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

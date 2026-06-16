@@ -17,7 +17,10 @@ defmodule ShowcaseWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images uploads favicon.ico robots.txt)
+  # `uploads` is served by `ShowcaseWeb.Plugs.Uploads` (runtime-configurable
+  # root directory) instead of Plug.Static, because in a release the
+  # writer's CWD-relative path doesn't match Plug.Static's app_dir.
+  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
   def router do
     quote do

@@ -15,6 +15,12 @@ defmodule ShowcaseWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # User uploads — served by a custom plug because in a release the
+  # writer's `priv/static/uploads/...` (CWD-relative) doesn't match
+  # Plug.Static's `:from :showcase` (app_dir-relative). See the plug
+  # module + UPLOADS_ROOT env var.
+  plug ShowcaseWeb.Plugs.Uploads
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
