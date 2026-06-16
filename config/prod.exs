@@ -7,17 +7,21 @@ import Config
 # before starting your production server.
 config :showcase, ShowcaseWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
-# Force using SSL in production. This also sets the "strict-security-transport" header,
-# known as HSTS. If you have a health check endpoint, you may want to exclude it below.
-# Note `:force_ssl` is required to be set at compile-time.
-config :showcase, ShowcaseWeb.Endpoint,
-  force_ssl: [
-    rewrite_on: [:x_forwarded_proto],
-    exclude: [
-      # paths: ["/health"],
-      hosts: ["localhost", "127.0.0.1"]
-    ]
-  ]
+# SSL is terminated at Railway's edge proxy — by the time a request reaches
+# the container it's plain HTTP, and Railway's internal healthcheck never
+# sets X-Forwarded-Proto, so Plug.SSL.force_ssl returns a 301 on every
+# healthcheck → deploy never goes live. Public traffic can only reach the
+# app through Railway's HTTPS-only edge anyway, so force_ssl inside the
+# container is redundant security with a breaking side effect.
+# (If you ever run this outside a TLS-terminating proxy, re-enable below.)
+#
+# config :showcase, ShowcaseWeb.Endpoint,
+#   force_ssl: [
+#     rewrite_on: [:x_forwarded_proto],
+#     exclude: [
+#       hosts: ["localhost", "127.0.0.1"]
+#     ]
+#   ]
 
 # Configure Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req
