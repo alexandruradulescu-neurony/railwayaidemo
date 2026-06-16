@@ -13,7 +13,14 @@ defmodule Showcase.RestaurantCompliance do
   alias Showcase.Repo
 
   @refs_dir "priv/static/images/restaurant_compliance"
-  @uploads_dir "priv/static/uploads/restaurant_compliance"
+
+  # Resolved at runtime — see UPLOADS_ROOT env var.
+  defp uploads_dir do
+    Path.join(
+      Application.get_env(:showcase, :uploads_root, "priv/static/uploads"),
+      "restaurant_compliance"
+    )
+  end
 
   # ── Rulesets ───────────────────────────────────────────────────────
 
@@ -108,10 +115,10 @@ defmodule Showcase.RestaurantCompliance do
           {:ok, Inspection.t()} | {:error, Ecto.Changeset.t()}
   def save_inspection_photo(%Inspection{} = inspection, image_bytes)
       when is_binary(image_bytes) do
-    File.mkdir_p!(@uploads_dir)
+    File.mkdir_p!(uploads_dir())
     ext = extension_from_bytes(image_bytes)
     filename = "insp-#{inspection.id}-#{System.unique_integer([:positive])}#{ext}"
-    full = Path.join(@uploads_dir, filename)
+    full = Path.join(uploads_dir(), filename)
     File.write!(full, image_bytes)
     relative = "/uploads/restaurant_compliance/#{filename}"
 

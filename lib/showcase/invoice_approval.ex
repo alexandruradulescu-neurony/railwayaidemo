@@ -15,7 +15,15 @@ defmodule Showcase.InvoiceApproval do
   alias Showcase.InvoiceApproval.Worker
   alias Showcase.Repo
 
-  @upload_dir "priv/static/uploads/invoice_approval"
+  # Resolved at runtime so the release's UPLOADS_ROOT env var (set on
+  # Railway to match the volume mount) is honored.
+  defp upload_dir do
+    Path.join(
+      Application.get_env(:showcase, :uploads_root, "priv/static/uploads"),
+      "invoice_approval"
+    )
+  end
+
   @upload_url_prefix "/uploads/invoice_approval"
 
   # ── Clients ───────────────────────────────────────────────────────────
@@ -215,10 +223,10 @@ defmodule Showcase.InvoiceApproval do
   @doc "Persist an uploaded file under the invoice_approval uploads dir."
   @spec save_attachment(Path.t(), String.t()) :: String.t()
   def save_attachment(temp_path, original_name) do
-    File.mkdir_p!(@upload_dir)
+    File.mkdir_p!(upload_dir())
     ext = original_name |> Path.extname() |> String.downcase()
     filename = "#{System.unique_integer([:positive])}-#{:erlang.unique_integer([:positive])}#{ext}"
-    dest = Path.join(@upload_dir, filename)
+    dest = Path.join(upload_dir(), filename)
     File.cp!(temp_path, dest)
     "#{@upload_url_prefix}/#{filename}"
   end

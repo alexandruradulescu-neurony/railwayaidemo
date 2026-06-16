@@ -64,18 +64,16 @@ defmodule Showcase.RestaurantCompliance.Worker do
   defp safe_read(nil), do: nil
 
   defp safe_read(path) when is_binary(path) do
-    full = Path.join("priv/static", String.trim_leading(path, "/"))
-
-    case File.read(full) do
+    case File.read(Showcase.Uploads.resolve(path)) do
       {:ok, bytes} when byte_size(bytes) > 100 -> bytes
       _ -> nil
     end
   end
 
   defp safe_read_ref(path) when is_binary(path) do
-    # References are optional and may not exist on disk (e.g. before the
-    # user drops the bundled placeholders in). Tolerate missing files.
-    full = Path.join("priv/static", String.trim_leading(path, "/"))
+    # Reference images live in the release's static dir (Plug.Static
+    # app_dir). They're optional — tolerate missing.
+    full = Path.join(Application.app_dir(:showcase, "priv/static"), String.trim_leading(path, "/"))
 
     case File.read(full) do
       {:ok, bytes} when byte_size(bytes) > 100 -> bytes

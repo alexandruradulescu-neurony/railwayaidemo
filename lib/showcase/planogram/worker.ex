@@ -49,7 +49,7 @@ defmodule Showcase.Planogram.Worker do
   defp read_photo(%VerificationTask{photo_path: nil}), do: nil
 
   defp read_photo(%VerificationTask{photo_path: path}) when is_binary(path) do
-    case File.read(Path.join("priv/static", String.trim_leading(path, "/"))) do
+    case File.read(Showcase.Uploads.resolve(path)) do
       {:ok, bytes} -> bytes
       {:error, _} -> nil
     end
@@ -59,7 +59,10 @@ defmodule Showcase.Planogram.Worker do
 
   defp read_reference(%VerificationTask{planogram: %{reference_image_path: path}})
        when is_binary(path) do
-    case safe_read_optional(Path.join("priv/static", String.trim_leading(path, "/"))) do
+    # Reference images live in the release's static dir.
+    full = Path.join(Application.app_dir(:showcase, "priv/static"), String.trim_leading(path, "/"))
+
+    case safe_read_optional(full) do
       {:ok, bytes} when byte_size(bytes) > 100 -> bytes
       # Tiny placeholder PNGs (< 100 bytes) are not useful as references;
       # skip them so the pipeline falls back to single-image mode.

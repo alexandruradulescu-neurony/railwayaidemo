@@ -127,9 +127,7 @@ defmodule Showcase.OrderFlow.Extraction do
   # them natively — text + embedded images + handwriting). Everything else
   # falls through to `image` blocks.
   defp read_attachment_block(path) when is_binary(path) do
-    full_path = Path.join("priv/static", String.trim_leading(path, "/"))
-
-    case File.read(full_path) do
+    case File.read(Showcase.Uploads.resolve(path)) do
       {:ok, bytes} ->
         if pdf?(path) do
           %{

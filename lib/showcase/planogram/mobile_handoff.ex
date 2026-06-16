@@ -16,7 +16,13 @@ defmodule Showcase.Planogram.MobileHandoff do
   alias Showcase.Planogram.VerificationTask
   alias Showcase.Repo
 
-  @upload_dir "priv/static/uploads/planogram"
+  # Resolved at runtime — see UPLOADS_ROOT env var.
+  defp upload_dir do
+    Path.join(
+      Application.get_env(:showcase, :uploads_root, "priv/static/uploads"),
+      "planogram"
+    )
+  end
 
   @spec generate_token() :: String.t()
   def generate_token do
@@ -41,10 +47,10 @@ defmodule Showcase.Planogram.MobileHandoff do
   @spec finalize_upload(VerificationTask.t(), binary()) ::
           {:ok, VerificationTask.t()} | {:error, term()}
   def finalize_upload(%VerificationTask{} = task, bytes) when is_binary(bytes) do
-    File.mkdir_p!(@upload_dir)
+    File.mkdir_p!(upload_dir())
     extension = if String.starts_with?(bytes, <<137, 80, 78, 71>>), do: ".png", else: ".jpg"
     filename = "#{task.id}-#{System.unique_integer([:positive])}#{extension}"
-    full_path = Path.join(@upload_dir, filename)
+    full_path = Path.join(upload_dir(), filename)
     File.write!(full_path, bytes)
 
     relative = "/uploads/planogram/#{filename}"

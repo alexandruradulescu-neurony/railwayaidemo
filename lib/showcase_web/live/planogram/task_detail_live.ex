@@ -601,8 +601,8 @@ defmodule ShowcaseWeb.Planogram.TaskDetailLive do
   # broken-image 404 on demo day.
   defp photo_on_disk?(nil), do: false
 
-  defp photo_on_disk?("/" <> rel) do
-    File.exists?(Path.join("priv/static", rel))
+  defp photo_on_disk?("/" <> _ = path) do
+    File.exists?(Showcase.Uploads.resolve(path))
   end
 
   defp photo_on_disk?(_), do: false
