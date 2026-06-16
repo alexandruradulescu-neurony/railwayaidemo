@@ -1,0 +1,13 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Run migrations + seeds before traffic flips to the new release.
+# Idempotent — both can run on every deploy.
+preDeployCommand = ["/app/bin/migrate", "/app/bin/seed"]
+startCommand = "/app/bin/server"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
